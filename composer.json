@@ -16,14 +16,15 @@
     }
   ],
   "require": {
-    "php": "^7.2 | ^8.0",
+    "php": "^8.1",
     "ext-json": "*",
     "webmozart/assert": "^1.11.0"
   },
   "require-dev": {
-    "rector/rector": "^0.14.0",
+    "rector/rector": "^2.0",
     "nikosdion/joomla_typehints": "*",
-    "phpunit/phpunit": "^9.5.23"
+    "phpunit/phpunit": "^10.0 | ^11.0",
+    "phpstan/phpstan-deprecation-rules": "^2.0"
   },
   "autoload": {
     "psr-4": {

@@ -17,13 +17,11 @@ use PhpParser\Node\Name;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\Namespace_;
 use PhpParser\Node\Stmt\Property;
-use Rector\Core\Application\FileSystem\RemovedAndAddedFilesCollector;
-use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
-use Rector\Core\Exception\ShouldNotHappenException;
-use Rector\Core\PhpParser\Node\CustomNode\FileWithoutNamespace;
-use Rector\Core\Rector\AbstractRector;
+use Rector\Contract\Rector\ConfigurableRectorInterface;
+use Rector\Exception\ShouldNotHappenException;
+use Rector\PhpParser\Node\FileNode;
+use Rector\Rector\AbstractRector;
 use Rector\Naming\Config\JoomlaLegacyPrefixToNamespace;
-use Rector\NodeTypeResolver\Node\AttributeKey;
 use Webmozart\Assert\Assert;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -56,15 +54,6 @@ class JoomlaLegacyMVCToJ4Rector extends AbstractRector implements ConfigurableRe
 	protected $newNamespace = null;
 
 	/**
-	 * Rector utility object which collects the filename changes
-	 *
-	 * @since 1.0.0
-	 * @var   RemovedAndAddedFilesCollector
-	 * @readonly
-	 */
-	protected $removedAndAddedFilesCollector;
-
-	/**
 	 * Stores the renamed class map for a second pass.
 	 *
 	 * @var   RenamedClassHandlerService
@@ -75,19 +64,15 @@ class JoomlaLegacyMVCToJ4Rector extends AbstractRector implements ConfigurableRe
 	/**
 	 * Public constructor.
 	 *
-	 * Rector (well, Symfony) automatically pushes the dependencies we ask for through its DI container.
-	 *
-	 * @param   RemovedAndAddedFilesCollector  $removedAndAddedFilesCollector
+	 * @param   RenamedClassHandlerService  $renamedClassHandlerService
 	 *
 	 * @since   1.0.0
 	 */
 	public function __construct(
-		RemovedAndAddedFilesCollector $removedAndAddedFilesCollector,
-		RenamedClassHandlerService    $renamedClassHandlerService
+		RenamedClassHandlerService $renamedClassHandlerService
 	)
 	{
-		$this->removedAndAddedFilesCollector = $removedAndAddedFilesCollector;
-		$this->renamedClassHandlerService    = $renamedClassHandlerService;
+		$this->renamedClassHandlerService = $renamedClassHandlerService;
 	}
 
 	/**
@@ -112,16 +97,8 @@ class JoomlaLegacyMVCToJ4Rector extends AbstractRector implements ConfigurableRe
 	public function getNodeTypes(): array
 	{
 		return [
-			FileWithoutNamespace::class, Namespace_::class,
+			FileNode::class, Namespace_::class,
 		];
-	}
-
-	/**
-	 * @return RemovedAndAddedFilesCollector
-	 */
-	public function getRemovedAndAddedFilesCollector(): RemovedAndAddedFilesCollector
-	{
-		return $this->removedAndAddedFilesCollector;
 	}
 
 	/**
@@ -152,7 +129,7 @@ CODE_SAMPLE
 	/**
 	 * Performs the refactoring on the supported nodes.
 	 *
-	 * @param   FileWithoutNamespace|Namespace_  $node
+	 * @param   FileNode|Namespace_  $node
 	 *
 	 * @since   1.0.0
 	 */
@@ -160,7 +137,7 @@ CODE_SAMPLE
 	{
 		$this->newNamespace = null;
 
-		if ($node instanceof FileWithoutNamespace)
+		if ($node instanceof FileNode)
 		{
 			$changedStmts = $this->refactorStmts($node->stmts, true);
 
@@ -187,26 +164,19 @@ CODE_SAMPLE
 	}
 
 	/**
-	 * Processes an Identifier node
+	 * Processes an Identifier node that is a class declaration name
 	 *
 	 * @param   Identifier  $identifier          The node to process
 	 * @param   string      $prefix              The legacy Joomla 3 prefix, e.g. Example
 	 * @param   string      $newNamespacePrefix  The Joomla 4 common namespace prefix e.g. \Acme\Example
 	 * @param   bool        $isNewFile           Is this a file without a namespace already defined?
 	 *
-	 * @return  Identifier|null  The refactored identified; null if no refactoring is necessary / possible
+	 * @return  Identifier|null  The refactored identifier; null if no refactoring is necessary / possible
 	 * @throws  ShouldNotHappenException  A file had two classes in it yielding different namespaces. Don't do that!
 	 * @since   1.0.0
 	 */
 	protected function processIdentifier(Identifier $identifier, string $prefix, string $newNamespacePrefix, bool $isNewFile = false): ?Identifier
 	{
-		$parentNode = $identifier->getAttribute(AttributeKey::PARENT_NODE);
-
-		if (!$parentNode instanceof Class_)
-		{
-			return null;
-		}
-
 		$name = $this->getName($identifier);
 
 		if ($name === null)
@@ -241,8 +211,6 @@ CODE_SAMPLE
 		$this->newNamespace = $newNamespace;
 		$identifier->name   = $lastNewNamePart;
 
-		$this->moveFile($newNamespacePrefix, $fqn);
-
 		return $identifier;
 	}
 
@@ -269,7 +237,7 @@ CODE_SAMPLE
 			return $name;
 		}
 
-		$name->parts = explode('\\', $fqn);
+		$name->name = $fqn;
 
 		return $name;
 	}
@@ -290,24 +258,42 @@ CODE_SAMPLE
 			return null;
 		}
 
+		$nodeName = $this->getName($node);
+
+		if ($nodeName === null)
+		{
+			return null;
+		}
+
 		foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace)
 		{
 			$prefix    = $legacyPrefixToNamespace->getNamespacePrefix();
 			$supported = [
-				$prefix . 'Controller*',
-				$prefix . 'Model*',
-				$prefix . 'View*',
-				$prefix . 'Table*',
+				$prefix . 'Controller',
+				$prefix . 'Model',
+				$prefix . 'View',
+				$prefix . 'Table',
 			];
 
-			if (!$this->isNames($node, $supported))
+			$matchesSupported = false;
+
+			foreach ($supported as $supportedPrefix)
+			{
+				if (str_starts_with($nodeName, $supportedPrefix))
+				{
+					$matchesSupported = true;
+					break;
+				}
+			}
+
+			if (!$matchesSupported)
 			{
 				continue;
 			}
 
 			$excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
 
-			if ($excludedClasses !== [] && $this->isNames($node, $excludedClasses))
+			if ($excludedClasses !== [] && in_array($nodeName, $excludedClasses, true))
 			{
 				return null;
 			}
@@ -357,20 +343,8 @@ CODE_SAMPLE
 		$hasChanged = \false;
 
 		$this->traverseNodesWithCallable($stmts, function (Node $node) use (&$hasChanged, $isNewFile): ?Node {
-			if (
-				!$node instanceof Name
-				&& !$node instanceof Identifier
-				&& !$node instanceof Property
-				&& !$node instanceof FunctionLike
-			)
-			{
-				return null;
-			}
-
-			if (
-				$node instanceof Name
-				|| $node instanceof Identifier
-			)
+			// Process Name nodes (type hints, extends, new expressions, etc.)
+			if ($node instanceof Name)
 			{
 				$changedNode = $this->processNameOrIdentifier($node, $isNewFile);
 
@@ -379,6 +353,22 @@ CODE_SAMPLE
 					$hasChanged = \true;
 
 					return $changedNode;
+				}
+
+				return null;
+			}
+
+			// Process class declaration names directly from the Class_ node
+			if ($node instanceof Class_ && $node->name instanceof Identifier)
+			{
+				$changedIdentifier = $this->processNameOrIdentifier($node->name, $isNewFile);
+
+				if ($changedIdentifier instanceof Identifier)
+				{
+					$node->name = $changedIdentifier;
+					$hasChanged = \true;
+
+					return $node;
 				}
 			}
 

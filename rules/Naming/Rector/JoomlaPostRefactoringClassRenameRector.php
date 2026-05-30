@@ -17,11 +17,14 @@ use PhpParser\Node\Stmt\Expression;
 use PhpParser\Node\Stmt\Namespace_;
 use PhpParser\Node\Stmt\Property;
 use PhpParser\Node\Stmt\Use_;
-use Rector\Core\Configuration\RectorConfigProvider;
-use Rector\Core\PhpParser\Node\CustomNode\FileWithoutNamespace;
-use Rector\Core\Rector\AbstractRector;
+use PhpParser\NodeVisitor;
+use Rector\Configuration\Option;
+use Rector\Configuration\Parameter\SimpleParameterProvider;
+use Rector\PhpParser\Node\FileNode;
+use Rector\Rector\AbstractRector;
 use Rector\Naming\Rector\FileWithoutNamespace\JoomlaNamespaceHandlingTrait;
 use Rector\Naming\Rector\FileWithoutNamespace\RenamedClassHandlerService;
+use Rector\NodeTypeResolver\Node\AttributeKey;
 use Rector\Renaming\NodeManipulator\ClassRenamer;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -31,28 +34,19 @@ class JoomlaPostRefactoringClassRenameRector extends AbstractRector
 	use JoomlaNamespaceHandlingTrait;
 
 	/**
-	 * @readonly
 	 * @var \Rector\Renaming\NodeManipulator\ClassRenamer
 	 */
-	private $classRenamer;
+	private ClassRenamer $classRenamer;
 
 	/**
-	 * @readonly
-	 * @var \Rector\Core\Configuration\RectorConfigProvider
-	 */
-	private $rectorConfigProvider;
-
-	/**
-	 * @readonly
 	 * @var RenamedClassHandlerService
 	 */
-	private $renamedClassHandlerService;
+	private RenamedClassHandlerService $renamedClassHandlerService;
 
-	public function __construct(RenamedClassHandlerService $renamedClassHandlerService, ClassRenamer $classRenamer, RectorConfigProvider $rectorConfigProvider)
+	public function __construct(RenamedClassHandlerService $renamedClassHandlerService, ClassRenamer $classRenamer)
 	{
 		$this->renamedClassHandlerService = $renamedClassHandlerService;
 		$this->classRenamer               = $classRenamer;
-		$this->rectorConfigProvider       = $rectorConfigProvider;
 	}
 
 	/**
@@ -62,7 +56,7 @@ class JoomlaPostRefactoringClassRenameRector extends AbstractRector
 	{
 		return [
 			Name::class, Property::class, FunctionLike::class, Expression::class, ClassLike::class, Namespace_::class,
-			FileWithoutNamespace::class, Use_::class,
+			FileNode::class, Use_::class,
 		];
 	}
 
@@ -103,9 +97,9 @@ CODE_SAMPLE
 	}
 
 	/**
-	 * @param   FunctionLike|Name|ClassLike|Expression|Namespace_|Property|FileWithoutNamespace|Use_  $node
+	 * @param   FunctionLike|Name|ClassLike|Expression|Namespace_|Property|FileNode|Use_  $node
 	 */
-	public function refactor(Node $node): ?Node
+	public function refactor(Node $node): int|Node|null
 	{
 		$applicationSide = strtolower($this->getApplicationSide());
 		$applicationSide = ($applicationSide === 'administrator') ? 'admin' : $applicationSide;
@@ -119,10 +113,12 @@ CODE_SAMPLE
 
 		if (!$node instanceof Use_)
 		{
-			return $this->classRenamer->renameNode($node, $oldToNewClasses);
+			$scope = $node->getAttribute(AttributeKey::SCOPE);
+
+			return $this->classRenamer->renameNode($node, $oldToNewClasses, $scope);
 		}
 
-		if (!$this->rectorConfigProvider->shouldImportNames())
+		if (!SimpleParameterProvider::provideBoolParameter(Option::AUTO_IMPORT_NAMES))
 		{
 			return null;
 		}
@@ -133,15 +129,13 @@ CODE_SAMPLE
 	/**
 	 * @param   array<string, string>  $oldToNewClasses
 	 */
-	private function processCleanUpUse(Use_ $use, array $oldToNewClasses): ?Use_
+	private function processCleanUpUse(Use_ $use, array $oldToNewClasses): ?int
 	{
 		foreach ($use->uses as $useUse)
 		{
 			if (!$useUse->alias instanceof Identifier && isset($oldToNewClasses[$useUse->name->toString()]))
 			{
-				$this->removeNode($use);
-
-				return $use;
+				return NodeVisitor::REMOVE_NODE;
 			}
 		}
 

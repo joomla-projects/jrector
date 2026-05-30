@@ -8,22 +8,15 @@
 
 declare (strict_types=1);
 
-namespace RectorPrefix202208;
-
 use Rector\Config\RectorConfig;
 use Rector\Naming\Config\JoomlaLegacyPrefixToNamespace;
 use Rector\Naming\Rector\FileWithoutNamespace\JoomlaHelpersToJ4Rector;
 use Rector\Naming\Rector\FileWithoutNamespace\RenamedClassHandlerService;
 
 return static function (RectorConfig $rectorConfig): void {
-	$services = $rectorConfig
-		->services()
-		->defaults()
-		->autowire()
-		->autoconfigure();
-
-	$services->set(RenamedClassHandlerService::class)
-	         ->arg('$directory', realpath(__DIR__ . '/../../../../../../'));
+	$rectorConfig->singleton(RenamedClassHandlerService::class, static function () {
+		return new RenamedClassHandlerService(realpath(__DIR__ . '/../../../../../../'));
+	});
 
 	$rectorConfig->ruleWithConfiguration(
 		JoomlaHelpersToJ4Rector::class,

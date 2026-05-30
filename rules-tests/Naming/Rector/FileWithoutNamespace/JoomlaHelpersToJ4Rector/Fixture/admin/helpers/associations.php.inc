@@ -7,9 +7,11 @@ class ExampleAssociationsHelper extends \Joomla\CMS\Association\AssociationExten
 ?>
 -----
 <?php
-
 namespace Acme\Example\Administrator\Helper;
 
 class AssociationsHelper extends \Joomla\CMS\Association\AssociationExtensionHelper
 {
+
 }
+
+?>

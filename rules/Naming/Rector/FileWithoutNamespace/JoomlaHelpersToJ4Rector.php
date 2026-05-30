@@ -13,7 +13,7 @@ namespace Rector\Naming\Rector\FileWithoutNamespace;
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
-use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
+use Rector\Contract\Rector\ConfigurableRectorInterface;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
@@ -72,22 +72,28 @@ CODE_SAMPLE
 			return null;
 		}
 
+		$nodeName = $this->getName($node);
+
+		if ($nodeName === null)
+		{
+			return null;
+		}
+
 		foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace)
 		{
-			$prefix    = $legacyPrefixToNamespace->getNamespacePrefix();
-			$supported = [
-				$prefix . 'Helper*',
-				$prefix . '*Helper',
-			];
+			$prefix = $legacyPrefixToNamespace->getNamespacePrefix();
 
-			if (!$this->isNames($node, $supported))
+			$matchesPrefix = str_starts_with($nodeName, $prefix . 'Helper')
+				|| (str_starts_with($nodeName, $prefix) && str_ends_with($nodeName, 'Helper'));
+
+			if (!$matchesPrefix)
 			{
 				continue;
 			}
 
 			$excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
 
-			if ($excludedClasses !== [] && $this->isNames($node, $excludedClasses))
+			if ($excludedClasses !== [] && in_array($nodeName, $excludedClasses, true))
 			{
 				return null;
 			}

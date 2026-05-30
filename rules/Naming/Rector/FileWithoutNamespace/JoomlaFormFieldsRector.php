@@ -13,7 +13,7 @@ namespace Rector\Naming\Rector\FileWithoutNamespace;
 use PhpParser\Node;
 use PhpParser\Node\Identifier;
 use PhpParser\Node\Name;
-use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
+use Rector\Contract\Rector\ConfigurableRectorInterface;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
@@ -59,7 +59,7 @@ CODE_SAMPLE
 	public function refactor(Node $node): ?Node
 	{
 		// Makes sure the immediate path is models/fields
-		$filePath = $this->file->getFilePath();
+		$filePath = $this->getFile()->getFilePath();
 		$filePath = str_replace('\\', '/', $filePath);
 
 		if (strpos($filePath, '/models/fields/') === false)
@@ -86,18 +86,25 @@ CODE_SAMPLE
 			return null;
 		}
 
+		$nodeName = $this->getName($node);
+
+		if ($nodeName === null)
+		{
+			return null;
+		}
+
 		// The class name must begin with a form of "JFormField".
-		if (!$this->isName($node, 'JFormField*'))
+		if (!str_starts_with($nodeName, 'JFormField'))
 		{
 			return null;
 		}
 
 		foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace)
 		{
-			$prefix          = substr($this->getName($node), 0, 5);
+			$prefix          = substr($nodeName, 0, 5);
 			$excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
 
-			if ($excludedClasses !== [] && $this->isNames($node, $excludedClasses))
+			if ($excludedClasses !== [] && in_array($nodeName, $excludedClasses, true))
 			{
 				return null;
 			}

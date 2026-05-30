@@ -11,10 +11,8 @@ abstract class JHtmlExample
         return "lol";
     }
 }
-?>
 -----
 <?php
-
 namespace Acme\Example\Administrator\Service\Html;
 
 class Example
@@ -23,6 +21,7 @@ class Example
     {
         return "derp";
     }
+
     public function lol(): string
     {
         return "lol";

@@ -21,11 +21,11 @@ use PhpParser\Node\Stmt\ClassLike;
 use PhpParser\Node\Stmt\ClassMethod;
 use PHPStan\Reflection\ClassReflection;
 use PHPStan\Type\ObjectType;
-use Rector\Core\Application\FileSystem\RemovedAndAddedFilesCollector;
-use Rector\Core\Contract\Rector\ConfigurableRectorInterface;
-use Rector\Core\Reflection\ReflectionResolver;
+use Rector\Contract\Rector\ConfigurableRectorInterface;
+use Rector\PhpParser\Node\BetterNodeFinder;
 use Rector\Privatization\NodeManipulator\VisibilityManipulator;
 use Rector\Privatization\VisibilityGuard\ClassMethodVisibilityGuard;
+use Rector\Reflection\ReflectionResolver;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 
@@ -48,7 +48,7 @@ final class JoomlaHtmlHelpersRector extends JoomlaLegacyMVCToJ4Rector implements
 
 	/**
 	 * @readonly
-	 * @var \Rector\Core\Reflection\ReflectionResolver
+	 * @var \Rector\Reflection\ReflectionResolver
 	 */
 	private $reflectionResolver;
 
@@ -58,19 +58,26 @@ final class JoomlaHtmlHelpersRector extends JoomlaLegacyMVCToJ4Rector implements
 	 */
 	private $visibilityManipulator;
 
+	/**
+	 * @readonly
+	 * @var \Rector\PhpParser\Node\BetterNodeFinder
+	 */
+	private $betterNodeFinder;
+
 	public function __construct(
-		RemovedAndAddedFilesCollector $removedAndAddedFilesCollector,
 		RenamedClassHandlerService    $renamedClassHandlerService,
 		ClassMethodVisibilityGuard    $classMethodVisibilityGuard,
 		VisibilityManipulator         $visibilityManipulator,
-		ReflectionResolver            $reflectionResolver
+		ReflectionResolver            $reflectionResolver,
+		BetterNodeFinder              $betterNodeFinder
 	)
 	{
-		parent::__construct($removedAndAddedFilesCollector, $renamedClassHandlerService);
+		parent::__construct($renamedClassHandlerService);
 
 		$this->classMethodVisibilityGuard = $classMethodVisibilityGuard;
 		$this->visibilityManipulator      = $visibilityManipulator;
 		$this->reflectionResolver         = $reflectionResolver;
+		$this->betterNodeFinder           = $betterNodeFinder;
 	}
 
 	public function getNodeTypes(): array
@@ -118,7 +125,7 @@ CODE_SAMPLE
 	public function refactor(Node $node): ?Node
 	{
 		// Makes sure the immediate path is /helpers/html
-		$filePath = $this->file->getFilePath();
+		$filePath = $this->getFile()->getFilePath();
 		$filePath = str_replace('\\', '/', $filePath);
 		$pathBits = explode('/', $filePath);
 
@@ -173,27 +180,25 @@ CODE_SAMPLE
 			return null;
 		}
 
-		// The class name must begin with a form of "JHtml".
-		$supported = [
-			'JHtml*',
-			'Jhtml*',
-			'JHTML*',
-			'jhtml*',
-			'jHtml*',
-			'jHTML*',
-		];
+		$nodeName = $this->getName($node);
 
-		if (!$this->isNames($node, $supported))
+		if ($nodeName === null)
+		{
+			return null;
+		}
+
+		// The class name must begin with a form of "JHtml".
+		if (!str_starts_with(strtolower($nodeName), 'jhtml'))
 		{
 			return null;
 		}
 
 		foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace)
 		{
-			$prefix          = substr($this->getName($node), 0, 5);
+			$prefix          = substr($nodeName, 0, 5);
 			$excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
 
-			if ($excludedClasses !== [] && $this->isNames($node, $excludedClasses))
+			if ($excludedClasses !== [] && in_array($nodeName, $excludedClasses, true))
 			{
 				return null;
 			}
