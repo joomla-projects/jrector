@@ -211,6 +211,8 @@ CODE_SAMPLE
 		$this->newNamespace = $newNamespace;
 		$identifier->name   = $lastNewNamePart;
 
+        $this->moveFile($newNamespacePrefix, $fqn);
+
 		return $identifier;
 	}
 

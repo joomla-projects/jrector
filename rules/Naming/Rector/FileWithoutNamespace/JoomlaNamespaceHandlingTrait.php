@@ -291,4 +291,69 @@ trait JoomlaNamespaceHandlingTrait
 
 		return $fqn;
 	}
+
+    /**
+     * Moves a (namespaced) file to its canonical PSR-4 folder
+     *
+     * @param   string  $newNamespacePrefix  The common namespace prefix for the component.
+     * @param   string  $fqn                 The FQN of the class whose file is being moved.
+     *
+     * @return  void
+     * @since   1.0.0
+     */
+    protected function moveFile(string $newNamespacePrefix, string $fqn)
+    {
+        // I also need to move the file
+        $thisSideRoot = $this->divineExtensionRootFolder();
+
+        if ($thisSideRoot === null)
+        {
+            return;
+        }
+
+        // Remove the common namespace prefix
+        $newNamespacePrefix = trim($newNamespacePrefix, '\\');
+        $fqn                = trim($fqn, '\\');
+
+        if (strpos($fqn, $newNamespacePrefix) !== 0)
+        {
+            // Whatever happened is massively wrong. Give up.
+            return;
+        }
+
+        /**
+         * Convert the namespace \Acme\Example\Administrator\Controller\ExampleController to
+         * /path/to/component/admin/src/Controller/ExampleController.php
+         *
+         * Logic:
+         * * Start with \Acme\Example\Administrator\Controller\ExampleController
+         * * Remove the common namespace, so it becomes Administrator\Controller\ExampleController
+         * * Remove the first part (Administrator). We're left with Controller\ExampleController.
+         * * Replace the backslashes with directory separators e.g. Controller/ExampleController
+         * * Make the path by combining
+         *    - The root of the component side e.g. /path/to/component/admin
+         *    - The literal 'src'
+         *    - The relative path from the previous step e.g. Controller/ExampleController
+         *    - The literal '.php'
+         * There we get /path/to/component/admin/src/Controller/ExampleController.php
+         */
+        $relativeName = trim(substr($fqn, strlen($newNamespacePrefix)), '\\');
+        $fqnParts     = explode('\\', $relativeName);
+        array_shift($fqnParts);
+        $newPath = $thisSideRoot . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . implode(
+                DIRECTORY_SEPARATOR,
+                $fqnParts
+            ) . '.php';
+
+        // Make sure we actually DO need to rename the file.
+        if ($this->getFile()->getFilePath() === $newPath)
+        {
+            // Okay, this is already in the correct PSR-4 folder. Bye-bye!
+            return;
+        }
+
+        // Move the file
+        rename($this->getFile()->getFilePath(), $newPath);
+        //$this->getRemovedAndAddedFilesCollector()->addMovedFile($this->getFile(), $newPath);
+    }
 }
