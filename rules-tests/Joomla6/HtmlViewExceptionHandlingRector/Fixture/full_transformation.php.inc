@@ -1,13 +1,12 @@
 <?php
 
-// setUseException already exists — only the if-block should be removed.
-class ExampleHtmlView extends HtmlView
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
 {
     public function display($tpl = null)
     {
         $model = $this->getModel();
-        $model->setUseException(true);
 
+        // Check for errors.
         if (count($errors = $model->getErrors())) {
             throw new \Exception(implode("\n", $errors));
         }
@@ -18,12 +17,12 @@ class ExampleHtmlView extends HtmlView
 -----
 <?php
 
-// setUseException already exists — only the if-block should be removed.
-class ExampleHtmlView extends HtmlView
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
 {
     public function display($tpl = null)
     {
         $model = $this->getModel();
+
         $model->setUseException(true);
 
         $items = $model->getItems();

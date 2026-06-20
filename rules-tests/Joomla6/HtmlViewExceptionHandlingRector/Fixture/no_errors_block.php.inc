@@ -1,7 +1,7 @@
 <?php
 
 // No getErrors() if-block — only setUseException should be added.
-class ExampleHtmlView extends HtmlView
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
 {
     public function display($tpl = null)
     {
@@ -13,7 +13,7 @@ class ExampleHtmlView extends HtmlView
 <?php
 
 // No getErrors() if-block — only setUseException should be added.
-class ExampleHtmlView extends HtmlView
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
 {
     public function display($tpl = null)
     {
