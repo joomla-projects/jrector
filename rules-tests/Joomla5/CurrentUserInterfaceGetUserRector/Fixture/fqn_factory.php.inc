@@ -1,6 +1,6 @@
 <?php
 
-class ExampleModel extends BaseModel
+class ExampleModel implements \Joomla\CMS\User\CurrentUserInterface
 {
     public function getAuthoredBy(): int
     {
@@ -10,7 +10,7 @@ class ExampleModel extends BaseModel
 -----
 <?php
 
-class ExampleModel extends BaseModel
+class ExampleModel implements \Joomla\CMS\User\CurrentUserInterface
 {
     public function getAuthoredBy(): int
     {

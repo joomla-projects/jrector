@@ -2,7 +2,7 @@
 
 use Joomla\CMS\Factory;
 
-class ExampleModel extends BaseModel
+class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
 {
     public function isAllowed(): bool
     {
@@ -17,7 +17,7 @@ class ExampleModel extends BaseModel
 
 use Joomla\CMS\Factory;
 
-class ExampleModel extends BaseModel
+class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
 {
     public function isAllowed(): bool
     {
