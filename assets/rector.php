@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Joomla\Rector\Joomla3\ViewAssignRefToPropertyRector;
 use Joomla\Rector\Joomla4\JimportRector;
 use Joomla\Rector\Joomla5\CurrentUserInterfaceGetUserRector;
 use Joomla\Rector\Joomla5\GetDboToGetDatabaseRector;
@@ -40,6 +41,9 @@ return static function (RectorConfig $rectorConfig): void {
     /**
      * Refactoring rules to optimize code to Joomla 3.10
      */
+    $rectorConfig->rule(ViewAssignRefToPropertyRector::class);
+
+    // MVC refactoring rules
     $rectorConfig->singleton(RenamedClassHandlerService::class, static function () {
         return new RenamedClassHandlerService(__DIR__);
     });

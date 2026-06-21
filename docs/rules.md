@@ -4,6 +4,8 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
 
 ## Table of Contents
 
+- Joomla 3
+  - [ViewAssignRefToPropertyRector](#viewassignreftopropertyrector)
 - Joomla 4
   - [JimportRector](#jimportrector)
 - Joomla 5
@@ -13,6 +15,82 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
   - [ViewThisTypehintRector](#viewthistypehintrector)
 - Joomla 6
   - [HtmlViewExceptionHandlingRector](#htmlviewexceptionhandlingrector)
+
+---
+
+## ViewAssignRefToPropertyRector
+
+**Class:** `Joomla\Rector\Joomla3\ViewAssignRefToPropertyRector`
+
+Replaces `$this->assign('key', $value)` and `$this->assignRef('key', $value)` calls with direct property assignments `$this->key = $value` in Joomla view classes.
+
+In Joomla 3, data was passed to view templates via `assignRef()` — a by-reference assignment inherited from `JView`. In Joomla 4 and later, direct property assignment is the standard pattern.
+
+The rule applies to any class that directly or indirectly extends one of:
+- `Joomla\CMS\MVC\View\HtmlView`
+- `JViewLegacy`
+- `JView`
+
+Direct extension is detected via the AST (no reflection needed). For classes that extend a custom intermediate view class, PHPStan's `ReflectionProvider` walks the full inheritance chain, which requires `autoloadPaths()`.
+
+### Before / After
+
+```php
+// Before
+class ExampleView extends JView
+{
+    public function display($tpl = null)
+    {
+        $items = $this->get('Items');
+        $this->assign('items', $items);
+        $this->assignRef('user', JFactory::getUser());
+        $this->assignRef('state', $this->get('State'));
+
+        parent::display($tpl);
+    }
+}
+```
+
+```php
+// After
+class ExampleView extends JView
+{
+    public function display($tpl = null)
+    {
+        $items = $this->get('Items');
+        $this->items = $items;
+        $this->user = JFactory::getUser();
+        $this->state = $this->get('State');
+
+        parent::display($tpl);
+    }
+}
+```
+
+Both `assign()` and `assignRef()` are handled identically — both become a plain property assignment.
+
+### What is NOT changed
+
+- Classes that do not extend a recognised view base class are skipped entirely.
+- `assign()` / `assignRef()` calls whose first argument is not a string literal are left untouched (dynamic key names cannot be safely converted to a property access).
+
+### Configuration
+
+The rule requires no configuration parameters. `autoloadPaths()` is required when view classes inherit through custom intermediate classes:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla3\ViewAssignRefToPropertyRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(ViewAssignRefToPropertyRector::class);
+
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/joomla',
+    ]);
+};
+```
 
 ---
 
