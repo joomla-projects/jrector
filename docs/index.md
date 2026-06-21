@@ -7,8 +7,163 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
 - Joomla 4
   - [JimportRector](#jimportrector)
 - Joomla 5
+  - [CurrentUserInterfaceGetUserRector](#currentuserinterfacegetuserrector)
+  - [GetDboToGetDatabaseRector](#getdbotogetdatabaserector)
   - [HtmlViewGetToModelGetRector](#htmlviewgettomodelgetrector)
   - [ViewThisTypehintRector](#viewthistypehintrector)
+- Joomla 6
+  - [HtmlViewExceptionHandlingRector](#htmlviewexceptionhandlingrector)
+
+---
+
+## CurrentUserInterfaceGetUserRector
+
+**Class:** `Joomla\Rector\Joomla5\CurrentUserInterfaceGetUserRector`
+
+Replaces `Factory::getUser()` and `JFactory::getUser()` calls with `$this->getCurrentUser()` in classes that implement `\Joomla\CMS\User\CurrentUserInterface` — either directly in the `implements` list or through inheritance from a Joomla core class such as `BaseDatabaseModel` or `BaseController`.
+
+The rule checks for direct implementation first (AST-only, no reflection). For inherited implementations it falls back to PHPStan's `ReflectionProvider`, which requires the Joomla class hierarchy to be available via `autoloadPaths()`.
+
+### Before / After
+
+```php
+// Before — direct implementation
+class ExampleController implements \Joomla\CMS\User\CurrentUserInterface
+{
+    public function isAllowed(): bool
+    {
+        $user = Factory::getUser();
+        return $user->authorise('core.edit', 'com_example');
+    }
+}
+```
+
+```php
+// After
+class ExampleController implements \Joomla\CMS\User\CurrentUserInterface
+{
+    public function isAllowed(): bool
+    {
+        $user = $this->getCurrentUser();
+        return $user->authorise('core.edit', 'com_example');
+    }
+}
+```
+
+Both `Factory::getUser()` and `JFactory::getUser()` (including the FQN `\Joomla\CMS\Factory::getUser()`) are replaced. Calls with arguments are left untouched.
+
+Inherited implementation is also detected when the Joomla sources are available:
+
+```php
+// Before — inherits CurrentUserInterface from BaseDatabaseModel
+class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
+{
+    public function isAllowed(): bool
+    {
+        $user1 = Factory::getUser();
+        $user2 = JFactory::getUser();
+        return $user1->authorise('core.edit', 'com_example');
+    }
+}
+```
+
+```php
+// After
+class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
+{
+    public function isAllowed(): bool
+    {
+        $user1 = $this->getCurrentUser();
+        $user2 = $this->getCurrentUser();
+        return $user1->authorise('core.edit', 'com_example');
+    }
+}
+```
+
+### Configuration
+
+The rule requires no configuration parameters. To enable detection through inherited implementations, point `autoloadPaths()` to the Joomla source or to the generated stubs:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\CurrentUserInterfaceGetUserRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(CurrentUserInterfaceGetUserRector::class);
+
+    // Required for detection through inheritance
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/stubs/src',
+        __DIR__ . '/stubs/vendor/joomla',
+    ]);
+};
+```
+
+---
+
+## GetDboToGetDatabaseRector
+
+**Class:** `Joomla\Rector\Joomla5\GetDboToGetDatabaseRector`
+
+Replaces deprecated `getDbo()` calls with `getDatabase()` in classes that use `\Joomla\Database\DatabaseAwareTrait` — either directly or through a parent class such as `BaseDatabaseModel`. All three call forms are rewritten:
+
+| Before | After |
+|---|---|
+| `$this->getDbo()` | `$this->getDatabase()` |
+| `Factory::getDbo()` | `$this->getDatabase()` |
+| `JFactory::getDbo()` | `$this->getDatabase()` |
+
+The rule uses PHPStan's `ReflectionProvider` with `getTraits(true)` to detect trait usage across the full inheritance chain, so the Joomla class hierarchy must be available via `autoloadPaths()`.
+
+### Before / After
+
+```php
+// Before
+class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
+{
+    public function getItems(): array
+    {
+        $db1 = $this->getDbo();
+        $db2 = Factory::getDbo();
+
+        return $db1->loadObjectList();
+    }
+}
+```
+
+```php
+// After
+class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
+{
+    public function getItems(): array
+    {
+        $db1 = $this->getDatabase();
+        $db2 = $this->getDatabase();
+
+        return $db1->loadObjectList();
+    }
+}
+```
+
+### Configuration
+
+The rule requires no configuration parameters. `autoloadPaths()` is required to detect trait usage through parent classes:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\GetDboToGetDatabaseRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(GetDboToGetDatabaseRector::class);
+
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/stubs/src',
+        __DIR__ . '/stubs/vendor/joomla',
+    ]);
+};
+```
 
 ---
 
@@ -184,5 +339,107 @@ use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(ViewThisTypehintRector::class);
+};
+```
+
+---
+
+## HtmlViewExceptionHandlingRector
+
+**Class:** `Joomla\Rector\Joomla6\HtmlViewExceptionHandlingRector`
+
+Modernises error handling in Joomla `HtmlView` classes for Joomla 6, which introduces exception-based error propagation from models. The rule performs two transformations in every method of an `HtmlView` class:
+
+1. **Adds `$model->setUseException(true)`** immediately after every `$model = $this->getModel()` assignment that is not already followed by that call.
+2. **Removes legacy `if (count($errors = $model->getErrors())) { ... }` blocks** — including any leading comments — since exceptions now propagate automatically when `setUseException(true)` is active.
+
+A class qualifies as an `HtmlView` if it extends `\Joomla\CMS\MVC\View\AbstractView` directly or via any parent class. Detection uses PHPStan's `ReflectionProvider` and therefore requires `autoloadPaths()`.
+
+### Before / After
+
+Full transformation — `setUseException` inserted, `getErrors()` block removed:
+
+```php
+// Before
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
+{
+    public function display($tpl = null)
+    {
+        $model = $this->getModel();
+
+        // Check for errors.
+        if (count($errors = $model->getErrors())) {
+            throw new \Exception(implode("\n", $errors));
+        }
+
+        $items = $model->getItems();
+    }
+}
+```
+
+```php
+// After
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
+{
+    public function display($tpl = null)
+    {
+        $model = $this->getModel();
+        $model->setUseException(true);
+
+        $items = $model->getItems();
+    }
+}
+```
+
+When `setUseException(true)` is already present, only the `getErrors()` block is removed:
+
+```php
+// Before — setUseException already present
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
+{
+    public function display($tpl = null)
+    {
+        $model = $this->getModel();
+        $model->setUseException(true);
+
+        if (count($errors = $model->getErrors())) {
+            throw new \Exception(implode("\n", $errors));
+        }
+
+        $items = $model->getItems();
+    }
+}
+```
+
+```php
+// After
+class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
+{
+    public function display($tpl = null)
+    {
+        $model = $this->getModel();
+        $model->setUseException(true);
+
+        $items = $model->getItems();
+    }
+}
+```
+
+### Configuration
+
+The rule requires no configuration parameters. `autoloadPaths()` is required to detect the `AbstractView` ancestry through the Joomla class hierarchy:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla6\HtmlViewExceptionHandlingRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(HtmlViewExceptionHandlingRector::class);
+
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/stubs/src',
+        __DIR__ . '/stubs/vendor/joomla',
+    ]);
 };
 ```
