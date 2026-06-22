@@ -399,14 +399,18 @@ return static function (RectorConfig $rectorConfig): void {
 
 Replaces `$this->get('Foo')` calls inside Joomla `HtmlView` classes with the equivalent direct model getter `$model->getFoo()`. If the method does not already have a `$model` variable, the rule prepends `$model = $this->getModel()` once at the top of the method.
 
-The rule only applies to classes whose short name is exactly `HtmlView`. Other classes that happen to call `$this->get()` are left untouched.
+When the class follows the Joomla 4 MVC namespace convention (`...\View\<Name>\HtmlView`), the rule additionally adds a `/** @var \...\Model\<Name>Model $model */` typehint comment above the `$model = $this->getModel()` line. The model FQN is derived automatically by replacing `\View\` with `\Model\`, removing the `\HtmlView` class name, and appending `Model`.
 
-You should typehint the correct model by manually adding `/** @var ActualModelClass $model */` to the code as well.
+The rule only applies to classes whose short name is exactly `HtmlView`. Other classes that happen to call `$this->get()` are left untouched.
 
 ### Before / After
 
+With namespace (comment is generated automatically):
+
 ```php
 // Before
+namespace Acme\Component\Example\Site\View\Articles;
+
 class HtmlView extends BaseHtmlView
 {
     public function display($tpl = null)
@@ -419,10 +423,13 @@ class HtmlView extends BaseHtmlView
 
 ```php
 // After
+namespace Acme\Component\Example\Site\View\Articles;
+
 class HtmlView extends BaseHtmlView
 {
     public function display($tpl = null)
     {
+        /** @var \Acme\Component\Example\Site\Model\ArticlesModel $model */
         $model      = $this->getModel();
         $items      = $model->getItems();
         $pagination = $model->getPagination();
@@ -430,10 +437,12 @@ class HtmlView extends BaseHtmlView
 }
 ```
 
-When `$model` is already defined in the method body, the `$model = $this->getModel()` line is **not** added again:
+When `$model = $this->getModel()` is already present in the method, only the comment is added and the `$this->get()` calls are replaced — no duplicate assignment:
 
 ```php
 // Before
+namespace Acme\Component\Example\Site\View\Articles;
+
 class HtmlView extends BaseHtmlView
 {
     public function display($tpl = null)
@@ -446,15 +455,20 @@ class HtmlView extends BaseHtmlView
 
 ```php
 // After
+namespace Acme\Component\Example\Site\View\Articles;
+
 class HtmlView extends BaseHtmlView
 {
     public function display($tpl = null)
     {
+        /** @var \Acme\Component\Example\Site\Model\ArticlesModel $model */
         $model = $this->getModel();
         $items = $model->getItems();
     }
 }
 ```
+
+Without namespace the `@var` comment is omitted (model FQN cannot be derived).
 
 ### Configuration
 
