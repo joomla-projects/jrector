@@ -31,9 +31,6 @@ return static function (RectorConfig $rectorConfig): void {
         // Auto-refactor code to at least PHP 8.1 (minimum Joomla 6 version)
         LevelSetList::UP_TO_PHP_81,
 
-        // Replace legacy class names with the namespaced ones
-        __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_4_0.php',
-
         // Use early returns in if-blocks (code quality)
         SetList::EARLY_RETURN,
     ]);
@@ -62,11 +59,20 @@ return static function (RectorConfig $rectorConfig): void {
     /**
      * Refactoring rules for Joomla 4
      */
+    $rectorConfig->sets([
+        // Replace legacy class names with the namespaced ones
+        __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_4_0.php',
+    ]);
+
     $rectorConfig->rule(JimportRector::class);
 
     /**
      * Refactoring rules for Joomla 5
      */
+    $rectorConfig->sets([
+        // Replace classes replaced in Joomla 6.0
+        __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_5_0.php',
+    ]);
     $rectorConfig->rule(CurrentUserInterfaceGetUserRector::class);
     $rectorConfig->rule(GetDboToGetDatabaseRector::class);
     $rectorConfig->rule(HtmlViewGetToModelGetRector::class);
@@ -75,6 +81,10 @@ return static function (RectorConfig $rectorConfig): void {
     /**
      * Refactoring rules for Joomla 6
      */
+    $rectorConfig->sets([
+        // Replace classes replaced in Joomla 6.0
+        __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_6_0.php',
+    ]);
     $rectorConfig->rule(HtmlViewExceptionHandlingRector::class);
 
 
