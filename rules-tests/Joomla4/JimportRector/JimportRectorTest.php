@@ -27,9 +27,9 @@ final class JimportRectorTest extends AbstractRectorTestCase
     /**
      * @return \Iterator<array<int, string>>
      */
-    public function provideData(): \Iterator
+    public static function provideData(): \Iterator
     {
-        return $this->yieldFilesFromDirectory(__DIR__ . '/Fixture');
+        return self::yieldFilesFromDirectory(__DIR__ . '/Fixture');
     }
 
     /**
