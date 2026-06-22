@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Joomla\Rector\Joomla3\ViewAssignRefToPropertyRector;
 use Joomla\Rector\Joomla4\JimportRector;
+use Joomla\Rector\Joomla5\ApplicationInputPropertyRector;
 use Joomla\Rector\Joomla5\CurrentUserInterfaceGetUserRector;
 use Joomla\Rector\Joomla5\GetDboToGetDatabaseRector;
 use Joomla\Rector\Joomla5\HtmlViewGetToModelGetRector;
@@ -77,6 +78,7 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(GetDboToGetDatabaseRector::class);
     $rectorConfig->rule(HtmlViewGetToModelGetRector::class);
     $rectorConfig->rule(ViewThisTypehintRector::class);
+    $rectorConfig->rule(ApplicationInputPropertyRector::class);
 
     /**
      * Refactoring rules for Joomla 6

@@ -9,6 +9,7 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
 - Joomla 4
   - [JimportRector](#jimportrector)
 - Joomla 5
+  - [ApplicationInputPropertyRector](#applicationinputpropertyrector)
   - [CurrentUserInterfaceGetUserRector](#currentuserinterfacegetuserrector)
   - [GetDboToGetDatabaseRector](#getdbotogetdatabaserector)
   - [HtmlViewGetToModelGetRector](#htmlviewgettomodelgetrector)
@@ -89,6 +90,113 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->autoloadPaths([
         __DIR__ . '/joomla',
     ]);
+};
+```
+
+---
+
+## ApplicationInputPropertyRector
+
+**Class:** `Joomla\Rector\Joomla5\ApplicationInputPropertyRector`
+
+Replaces `$var->input` with `$var->getInput()` inside method and function bodies where `$var` was assigned from any of the following calls:
+
+- `Factory::getApplication()`
+- `JFactory::getApplication()`
+- `\Joomla\CMS\Factory::getApplication()`
+- `$this->getApplication()`
+
+Variable tracking is scoped per method or function body, so the variable name (`$app`, `$application`, etc.) can be anything.
+
+In Joomla 4 and earlier the `$input` property was publicly accessible on application objects. Joomla 5 formalises access through the `getInput()` method. Direct property access still works due to backward compatibility, but using the method is the current best practice and required for forward compatibility.
+
+### Before / After
+
+`Factory::getApplication()` and `JFactory::getApplication()`:
+
+```php
+// Before
+class MyController extends BaseController
+{
+    public function execute(string $task): void
+    {
+        $app   = Factory::getApplication();
+        $name  = $app->input->get('name', '', 'string');
+        $input = $app->input;
+    }
+
+    public function save(): void
+    {
+        $app  = JFactory::getApplication();
+        $data = $app->input->getArray();
+    }
+}
+```
+
+```php
+// After
+class MyController extends BaseController
+{
+    public function execute(string $task): void
+    {
+        $app   = Factory::getApplication();
+        $name  = $app->getInput()->get('name', '', 'string');
+        $input = $app->getInput();
+    }
+
+    public function save(): void
+    {
+        $app  = JFactory::getApplication();
+        $data = $app->getInput()->getArray();
+    }
+}
+```
+
+`$this->getApplication()` (common in controllers, modules, and plugins):
+
+```php
+// Before
+class MyPlugin extends CMSPlugin
+{
+    public function onContentPrepare(): void
+    {
+        $app   = $this->getApplication();
+        $name  = $app->input->get('name', '', 'string');
+        $input = $app->input;
+    }
+}
+```
+
+```php
+// After
+class MyPlugin extends CMSPlugin
+{
+    public function onContentPrepare(): void
+    {
+        $app   = $this->getApplication();
+        $name  = $app->getInput()->get('name', '', 'string');
+        $input = $app->getInput();
+    }
+}
+```
+
+Chained access is handled correctly — `$app->input->get(...)` becomes `$app->getInput()->get(...)`.
+
+### What is NOT changed
+
+- `->input` on variables that are not directly assigned from a recognised `getApplication()` call in the same method or function body.
+
+### Configuration
+
+The rule requires no configuration parameters.
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\ApplicationInputPropertyRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(ApplicationInputPropertyRector::class);
 };
 ```
 
