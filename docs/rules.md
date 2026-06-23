@@ -14,6 +14,7 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
   - [GetDboToGetDatabaseRector](#getdbotogetdatabaserector)
   - [HtmlViewGetToModelGetRector](#htmlviewgettomodelgetrector)
   - [PluginPropertyToGetterRector](#pluginpropertytogeterrector)
+  - [PluginSubscriberInterfaceRector](#pluginsubscriberinterfacerector)
   - [ViewThisTypehintRector](#viewthistypehintrector)
 - Joomla 6
   - [HtmlViewExceptionHandlingRector](#htmlviewexceptionhandlingrector)
@@ -560,6 +561,93 @@ return static function (RectorConfig $rectorConfig): void {
 ```
 
 ---
+
+## PluginSubscriberInterfaceRector
+
+**Class:** `Joomla\Rector\Joomla5\PluginSubscriberInterfaceRector`
+
+Adds `Joomla\Event\SubscriberInterface` to the `implements` list of plugin classes and inserts a generated `getSubscribedEvents()` method when both of the following are true:
+
+1. The class directly or indirectly extends `Joomla\CMS\Plugin\CMSPlugin`.
+2. The class does not yet implement `Joomla\Event\SubscriberInterface` (neither directly nor through inheritance).
+
+Joomla 4 used magic event method names (`onContentPrepare`, `onUserLogin`, …) discovered via reflection. Joomla 5 requires plugins to explicitly declare which events they subscribe to via `SubscriberInterface::getSubscribedEvents()`.
+
+The generated `getSubscribedEvents()` method returns one entry per public, non-static, non-magic method defined in the class body, using the method name as both the event name (key) and the handler name (value). Magic methods (`__construct`, `__destruct`, …) and static methods are excluded.
+
+Direct extension of `CMSPlugin` is detected via the AST (no reflection needed). For classes that extend a custom intermediate plugin class, PHPStan's `ReflectionProvider` walks the full parent chain and therefore requires `autoloadPaths()`.
+
+### Before / After
+
+```php
+// Before
+use Joomla\CMS\Plugin\CMSPlugin;
+
+class PlgContentExample extends CMSPlugin
+{
+    public function __construct(&$subject, array $config = [])
+    {
+        parent::__construct($subject, $config);
+    }
+
+    public function onContentPrepare(): void {}
+    public function onUserLogin(): bool { return true; }
+}
+```
+
+```php
+// After
+use Joomla\CMS\Plugin\CMSPlugin;
+
+class PlgContentExample extends CMSPlugin implements \Joomla\Event\SubscriberInterface
+{
+    public function __construct(&$subject, array $config = [])
+    {
+        parent::__construct($subject, $config);
+    }
+
+    public function onContentPrepare(): void {}
+    public function onUserLogin(): bool { return true; }
+
+    public static function getSubscribedEvents(): array
+    {
+        return ['onContentPrepare' => 'onContentPrepare', 'onUserLogin' => 'onUserLogin'];
+    }
+}
+```
+
+### What is NOT changed
+
+- Classes that already implement `Joomla\Event\SubscriberInterface` (directly or via inheritance) are skipped.
+- Classes that do not extend `CMSPlugin` (directly or indirectly) are skipped.
+- PHP magic methods (`__construct`, `__destruct`, …) and static methods are not included in `getSubscribedEvents()`.
+
+### Manual follow-up
+
+The generated `getSubscribedEvents()` uses each method name as both the event key and the handler. Review the generated entries:
+- Rename keys to the actual Joomla event names if the method names differ (e.g. `onContentAfterSave` → `ContentAfterSave` in some Joomla 5 event dispatcher configurations).
+- Remove entries for helper methods that are public but not event handlers.
+
+### Configuration
+
+The rule requires no configuration parameters. `autoloadPaths()` is required when plugin classes inherit through custom intermediate classes:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\PluginSubscriberInterfaceRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(PluginSubscriberInterfaceRector::class);
+
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/joomla',
+    ]);
+};
+```
+
+---
+
 
 ## ViewThisTypehintRector
 
