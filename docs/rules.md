@@ -15,6 +15,7 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
   - [HtmlViewGetToModelGetRector](#htmlviewgettomodelgetrector)
   - [PluginPropertyToGetterRector](#pluginpropertytogeterrector)
   - [PluginSubscriberInterfaceRector](#pluginsubscriberinterfacerector)
+  - [TableGetInstanceRector](#tablegetinstancerector)
   - [ViewThisTypehintRector](#viewthistypehintrector)
 - Joomla 6
   - [HtmlViewExceptionHandlingRector](#htmlviewexceptionhandlingrector)
@@ -648,6 +649,116 @@ return static function (RectorConfig $rectorConfig): void {
 
 ---
 
+## TableGetInstanceRector
+
+**Class:** `Joomla\Rector\Joomla5\TableGetInstanceRector`
+
+Replaces `Table::getInstance($type)` static calls with direct class instantiation. In Joomla 5, `Table::getInstance()` is deprecated in favour of injecting a `$db` instance and calling `new TableClass($db)` directly.
+
+The replacement class FQN is resolved as follows:
+
+1. If `component_namespace` is configured and the component-specific table class `<component_namespace>\Administrator\Table\<Type>Table` can be found (via PHPStan's `ReflectionProvider` — requires `autoloadPaths()`), that class is used.
+2. Otherwise the rule falls back to the core namespace `\Joomla\CMS\Table\<Type>`.
+
+Only assignment expressions of the form `$var = Table::getInstance('Type')` are handled. Non-assignment contexts (return statements, conditions, chained calls) are left untouched. If the optional second argument (the legacy class prefix) is present, it must be `'JTable'` — any other prefix cannot be reliably resolved and is therefore skipped.
+
+### Before / After
+
+Core Joomla table (no component namespace configured or class not found):
+
+```php
+// Before
+use Joomla\CMS\Table\Table;
+
+class MyModel
+{
+    public function getContentTable(): void
+    {
+        $table = Table::getInstance('Content');
+    }
+}
+```
+
+```php
+// After
+use Joomla\CMS\Table\Table;
+
+class MyModel
+{
+    public function getContentTable(): void
+    {
+        $db = \Joomla\CMS\Factory::getDbo();
+        $table = new \Joomla\CMS\Table\Content($db);
+    }
+}
+```
+
+Component-specific table (when `component_namespace` is set and the class exists):
+
+```php
+// Before
+$table = \Joomla\CMS\Table\Table::getInstance('Article');
+```
+
+```php
+// After (with component_namespace = 'Acme\Component\Example' and ArticleTable exists)
+$db = \Joomla\CMS\Factory::getDbo();
+$table = new \Acme\Component\Example\Administrator\Table\ArticleTable($db);
+```
+
+The `JTable` default prefix is also accepted:
+
+```php
+// Before
+$table = Table::getInstance('User', 'JTable');
+```
+
+```php
+// After
+$db = \Joomla\CMS\Factory::getDbo();
+$table = new \Joomla\CMS\Table\User($db);
+```
+
+### What is NOT changed
+
+- Calls where the type argument is not a string literal (dynamic types cannot be resolved).
+- Calls with a non-`JTable` second argument (custom prefix — class name cannot be reliably derived).
+- Non-assignment contexts (`return Table::getInstance(...)`, conditions, method-chain bases).
+
+### Configuration
+
+The rule accepts an optional `component_namespace` parameter. Without it the rule always uses the core `\Joomla\CMS\Table\<Type>` fallback.
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\TableGetInstanceRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    // Without component namespace — always uses \Joomla\CMS\Table\<Type>
+    $rectorConfig->rule(TableGetInstanceRector::class);
+};
+```
+
+With a component namespace (requires `autoloadPaths()` so that `ReflectionProvider` can resolve the table class):
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\TableGetInstanceRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->ruleWithConfiguration(TableGetInstanceRector::class, [
+        TableGetInstanceRector::COMPONENT_NAMESPACE => 'Acme\\Component\\Example',
+    ]);
+
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/src',
+    ]);
+};
+```
+
+---
 
 ## ViewThisTypehintRector
 
