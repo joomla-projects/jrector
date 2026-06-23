@@ -2,12 +2,22 @@
 
 declare(strict_types=1);
 
+use Joomla\Rector\Joomla3\MVC\Config\JoomlaLegacyPrefixToNamespace;
+use Joomla\Rector\Joomla3\MVC\FormFieldsRector;
+use Joomla\Rector\Joomla3\MVC\FormRulesRector;
+use Joomla\Rector\Joomla3\MVC\HelpersToJ4Rector;
+use Joomla\Rector\Joomla3\MVC\HtmlHelpersRector;
+use Joomla\Rector\Joomla3\MVC\LegacyMVCToJ4Rector;
+use Joomla\Rector\Joomla3\MVC\RenamedClassHandlerService;
 use Joomla\Rector\Joomla3\ViewAssignRefToPropertyRector;
 use Joomla\Rector\Joomla4\JimportRector;
 use Joomla\Rector\Joomla5\ApplicationInputPropertyRector;
 use Joomla\Rector\Joomla5\CurrentUserInterfaceGetUserRector;
 use Joomla\Rector\Joomla5\GetDboToGetDatabaseRector;
 use Joomla\Rector\Joomla5\HtmlViewGetToModelGetRector;
+use Joomla\Rector\Joomla5\PluginPropertyToGetterRector;
+use Joomla\Rector\Joomla5\PluginSubscriberInterfaceRector;
+use Joomla\Rector\Joomla5\TableGetInstanceRector;
 use Joomla\Rector\Joomla5\ViewThisTypehintRector;
 use Joomla\Rector\Joomla6\HtmlViewExceptionHandlingRector;
 use Rector\Config\RectorConfig;
@@ -51,11 +61,11 @@ return static function (RectorConfig $rectorConfig): void {
         new JoomlaLegacyPrefixToNamespace('Helloworld', 'Acme\HelloWorld', []),
     ];
 
-    $rectorConfig->ruleWithConfiguration(JoomlaHelpersToJ4Rector::class, $joomlaNamespaceMaps);
-    $rectorConfig->ruleWithConfiguration(JoomlaHtmlHelpersRector::class, $joomlaNamespaceMaps);
-    $rectorConfig->ruleWithConfiguration(JoomlaFormFieldsRector::class, $joomlaNamespaceMaps);
-    $rectorConfig->ruleWithConfiguration(JoomlaFormRulesRector::class, $joomlaNamespaceMaps);
-    $rectorConfig->ruleWithConfiguration(JoomlaLegacyMVCToJ4Rector::class, $joomlaNamespaceMaps);
+    $rectorConfig->ruleWithConfiguration(HelpersToJ4Rector::class, $joomlaNamespaceMaps);
+    $rectorConfig->ruleWithConfiguration(HtmlHelpersRector::class, $joomlaNamespaceMaps);
+    $rectorConfig->ruleWithConfiguration(FormFieldsRector::class, $joomlaNamespaceMaps);
+    $rectorConfig->ruleWithConfiguration(FormRulesRector::class, $joomlaNamespaceMaps);
+    $rectorConfig->ruleWithConfiguration(LegacyMVCToJ4Rector::class, $joomlaNamespaceMaps);
 
     /**
      * Refactoring rules for Joomla 4
@@ -79,6 +89,9 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(HtmlViewGetToModelGetRector::class);
     $rectorConfig->rule(ViewThisTypehintRector::class);
     $rectorConfig->rule(ApplicationInputPropertyRector::class);
+    $rectorConfig->rule(PluginPropertyToGetterRector::class);
+    $rectorConfig->rule(PluginSubscriberInterfaceRector::class);
+    $rectorConfig->rule(TableGetInstanceRector::class);
 
     /**
      * Refactoring rules for Joomla 6
