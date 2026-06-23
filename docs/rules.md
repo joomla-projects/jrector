@@ -13,6 +13,7 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
   - [CurrentUserInterfaceGetUserRector](#currentuserinterfacegetuserrector)
   - [GetDboToGetDatabaseRector](#getdbotogetdatabaserector)
   - [HtmlViewGetToModelGetRector](#htmlviewgettomodelgetrector)
+  - [PluginPropertyToGetterRector](#pluginpropertytogeterrector)
   - [ViewThisTypehintRector](#viewthistypehintrector)
 - Joomla 6
   - [HtmlViewExceptionHandlingRector](#htmlviewexceptionhandlingrector)
@@ -481,6 +482,80 @@ use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(HtmlViewGetToModelGetRector::class);
+};
+```
+
+---
+
+## PluginPropertyToGetterRector
+
+**Class:** `Joomla\Rector\Joomla5\PluginPropertyToGetterRector`
+
+In classes that directly or indirectly extend `Joomla\CMS\Plugin\CMSPlugin`:
+
+- Replaces every `$this->app` access with `$this->getApplication()` when the class has a `$app` property.
+- Replaces every `$this->db` access with `$this->getDatabase()` when the class has a `$db` property.
+
+Property detection first checks the class's own declarations (AST). For direct `CMSPlugin` subclasses the check short-circuits to `true` immediately because `CMSPlugin` always declares both `$app` and `$db`. For indirect subclasses PHPStan's `ReflectionProvider` walks the full parent chain, which requires `autoloadPaths()`.
+
+### Before / After
+
+```php
+// Before
+use Joomla\CMS\Plugin\CMSPlugin;
+
+class PlgContentExample extends CMSPlugin
+{
+    public function onContentPrepare(): void
+    {
+        $app   = $this->app;
+        $this->app->enqueueMessage('test');
+
+        $query = $this->db->getQuery(true);
+        $this->db->setQuery($query);
+    }
+}
+```
+
+```php
+// After
+use Joomla\CMS\Plugin\CMSPlugin;
+
+class PlgContentExample extends CMSPlugin
+{
+    public function onContentPrepare(): void
+    {
+        $app   = $this->getApplication();
+        $this->getApplication()->enqueueMessage('test');
+
+        $query = $this->getDatabase()->getQuery(true);
+        $this->getDatabase()->setQuery($query);
+    }
+}
+```
+
+Both `$this->app` and `$this->db` in chained calls are handled — `$this->app->enqueueMessage(...)` becomes `$this->getApplication()->enqueueMessage(...)`.
+
+### What is NOT changed
+
+- Classes that do not extend `CMSPlugin` (directly or indirectly) are skipped entirely.
+- If the class has neither a `$app` nor a `$db` property (own or inherited), nothing is changed.
+
+### Configuration
+
+The rule requires no configuration parameters. `autoloadPaths()` is required when the plugin inherits through a custom intermediate class:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\PluginPropertyToGetterRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(PluginPropertyToGetterRector::class);
+
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/joomla',
+    ]);
 };
 ```
 
