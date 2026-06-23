@@ -6,5 +6,6 @@ parameters:
     - rules
     - rules-tests
   scanDirectories:
+    - joomla
   ignoreErrors:
   reportUnmatchedIgnoredErrors: false
