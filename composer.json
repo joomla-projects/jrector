@@ -1,20 +1,13 @@
 {
-  "name": "nikosdion/joomla_com_upgrader",
-  "description": "Rector rules to upgrade Joomla 3 components",
+  "name": "joomla-projects/jrector",
+  "description": "Rector rules to upgrade Joomla extension codes",
   "prefer-stable": true,
   "minimum-stability": "dev",
   "license": "GPL-2.0-or-later",
-  "version": "1.0.0-dev",
+  "version": "0.1.0",
   "config": {
     "optimize-autoloader": true
   },
-  "repositories": [
-    {
-      "name": "nikosdion/joomla_typehints",
-      "type": "vcs",
-      "url": "https://github.com/nikosdion/joomlatypehints"
-    }
-  ],
   "require": {
     "php": "^8.1",
     "ext-json": "*",
@@ -22,14 +15,15 @@
   },
   "require-dev": {
     "rector/rector": "^2.0",
-    "nikosdion/joomla_typehints": "*",
+    "joomla-projects/typehints": "*",
+    "friendsofphp/php-cs-fixer": "^3.94.2",
     "phpunit/phpunit": "^10.0 | ^11.0",
     "phpstan/phpstan-deprecation-rules": "^2.0"
   },
   "autoload": {
     "psr-4": {
-      "Rector\\": "rules",
-      "Rector\\Tests\\": "rules-tests"
+      "Joomla\\Rector\\": "rules",
+      "Joomla\\Rector\\Tests\\": "rules-tests"
     }
   }
 }
