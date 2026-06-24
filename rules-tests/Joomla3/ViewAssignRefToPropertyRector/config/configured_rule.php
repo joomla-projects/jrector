@@ -14,7 +14,7 @@ use Joomla\Rector\Joomla3\ViewAssignRefToPropertyRector;
 use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
-	$rectorConfig->rule(ViewAssignRefToPropertyRector::class);
+    $rectorConfig->rule(ViewAssignRefToPropertyRector::class);
 
     $rectorConfig->autoloadPaths([
         __DIR__ . '/../../../../joomla',

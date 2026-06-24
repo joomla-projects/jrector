@@ -40,28 +40,29 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  */
 final class ViewAssignRefToPropertyRector extends AbstractRector
 {
-	private const VIEW_ANCESTORS = [
-		'Joomla\CMS\MVC\View\HtmlView',
-		'JViewLegacy',
-		'JView',
-	];
+    private const VIEW_ANCESTORS = [
+        'Joomla\CMS\MVC\View\HtmlView',
+        'JViewLegacy',
+        'JView',
+    ];
 
-	public function __construct(
-		private readonly ReflectionProvider $reflectionProvider,
-	) {}
+    public function __construct(
+        private readonly ReflectionProvider $reflectionProvider,
+    ) {
+    }
 
-	public function getNodeTypes(): array
-	{
-		return [Class_::class];
-	}
+    public function getNodeTypes(): array
+    {
+        return [Class_::class];
+    }
 
-	public function getRuleDefinition(): RuleDefinition
-	{
-		return new RuleDefinition(
-			"Replace \$this->assignRef('key', \$value) with \$this->key = \$value in JView subclasses",
-			[
-				new CodeSample(
-					<<<'CODE_SAMPLE'
+    public function getRuleDefinition(): RuleDefinition
+    {
+        return new RuleDefinition(
+            "Replace \$this->assignRef('key', \$value) with \$this->key = \$value in JView subclasses",
+            [
+                new CodeSample(
+                    <<<'CODE_SAMPLE'
 class ExampleView extends JView
 {
     public function display($tpl = null)
@@ -74,7 +75,7 @@ class ExampleView extends JView
     }
 }
 CODE_SAMPLE,
-					<<<'CODE_SAMPLE'
+                    <<<'CODE_SAMPLE'
 class ExampleView extends JView
 {
     public function display($tpl = null)
@@ -87,121 +88,108 @@ class ExampleView extends JView
     }
 }
 CODE_SAMPLE
-				),
-			]
-		);
-	}
+                ),
+            ]
+        );
+    }
 
-	public function refactor(Node $node): ?Node
-	{
-		/** @var Class_ $node */
-		if (!$this->isViewClass($node))
-		{
-			return null;
-		}
+    public function refactor(Node $node): ?Node
+    {
+        /** @var Class_ $node */
+        if (!$this->isViewClass($node)) {
+            return null;
+        }
 
-		$hasChanged = false;
+        $hasChanged = false;
 
-		$this->traverseNodesWithCallable($node->stmts, function (Node $subNode) use (&$hasChanged): ?Node {
-			if (!$this->isAssignRefCall($subNode))
-			{
-				return null;
-			}
+        $this->traverseNodesWithCallable($node->stmts, function (Node $subNode) use (&$hasChanged): ?Node {
+            if (!$this->isAssignRefCall($subNode)) {
+                return null;
+            }
 
-			/** @var MethodCall $subNode */
-			$firstArg  = $subNode->args[0];
-			$secondArg = $subNode->args[1];
+            /** @var MethodCall $subNode */
+            $firstArg  = $subNode->args[0];
+            $secondArg = $subNode->args[1];
 
-			/** @var String_ $propertyNameNode */
-			$propertyNameNode = $firstArg->value;
-			$valueExpr        = $secondArg->value;
+            /** @var String_ $propertyNameNode */
+            $propertyNameNode = $firstArg->value;
+            $valueExpr        = $secondArg->value;
 
-			$hasChanged = true;
+            $hasChanged = true;
 
-			return new Assign(
-				new PropertyFetch(new Variable('this'), $propertyNameNode->value),
-				$valueExpr
-			);
-		});
+            return new Assign(
+                new PropertyFetch(new Variable('this'), $propertyNameNode->value),
+                $valueExpr
+            );
+        });
 
-		return $hasChanged ? $node : null;
-	}
+        return $hasChanged ? $node : null;
+    }
 
-	// -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
-	private function isViewClass(Class_ $class): bool
-	{
-		if ($class->extends === null)
-		{
-			return false;
-		}
+    private function isViewClass(Class_ $class): bool
+    {
+        if ($class->extends === null) {
+            return false;
+        }
 
-		// Fast AST path: direct extension of a known view class (no reflection needed)
-		$parentShortName = $class->extends->getLast();
-		$parentFqn       = ltrim($class->extends->toString(), '\\');
+        // Fast AST path: direct extension of a known view class (no reflection needed)
+        $parentShortName = $class->extends->getLast();
+        $parentFqn       = ltrim($class->extends->toString(), '\\');
 
-		foreach (self::VIEW_ANCESTORS as $ancestor)
-		{
-			if ($parentFqn === $ancestor || $parentShortName === $ancestor)
-			{
-				return true;
-			}
-		}
+        foreach (self::VIEW_ANCESTORS as $ancestor) {
+            if ($parentFqn === $ancestor || $parentShortName === $ancestor) {
+                return true;
+            }
+        }
 
-		// Reflection path: walk the full inheritance chain
-		$className = $this->getName($class);
+        // Reflection path: walk the full inheritance chain
+        $className = $this->getName($class);
 
-		if ($className === null || !$this->reflectionProvider->hasClass($className))
-		{
-			return false;
-		}
+        if ($className === null || !$this->reflectionProvider->hasClass($className)) {
+            return false;
+        }
 
-		$classReflection = $this->reflectionProvider->getClass($className);
+        $classReflection = $this->reflectionProvider->getClass($className);
 
-		while ($classReflection->getParentClass() !== null)
-		{
-			$classReflection = $classReflection->getParentClass();
+        while ($classReflection->getParentClass() !== null) {
+            $classReflection = $classReflection->getParentClass();
 
-			if (in_array($classReflection->getName(), self::VIEW_ANCESTORS, true))
-			{
-				return true;
-			}
-		}
+            if (\in_array($classReflection->getName(), self::VIEW_ANCESTORS, true)) {
+                return true;
+            }
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	/**
-	 * Matches: $this->assign('someKey', $someExpr)
-	 *          $this->assignRef('someKey', $someExpr)
-	 */
-	private function isAssignRefCall(Node $node): bool
-	{
-		if (!$node instanceof MethodCall)
-		{
-			return false;
-		}
+    /**
+     * Matches: $this->assign('someKey', $someExpr)
+     *          $this->assignRef('someKey', $someExpr)
+     */
+    private function isAssignRefCall(Node $node): bool
+    {
+        if (!$node instanceof MethodCall) {
+            return false;
+        }
 
-		if (!$node->var instanceof Variable || !$this->isName($node->var, 'this'))
-		{
-			return false;
-		}
+        if (!$node->var instanceof Variable || !$this->isName($node->var, 'this')) {
+            return false;
+        }
 
-		if (!$node->name instanceof Identifier || !in_array($node->name->name, ['assign', 'assignRef'], true))
-		{
-			return false;
-		}
+        if (!$node->name instanceof Identifier || !\in_array($node->name->name, ['assign', 'assignRef'], true)) {
+            return false;
+        }
 
-		if (count($node->args) !== 2)
-		{
-			return false;
-		}
+        if (\count($node->args) !== 2) {
+            return false;
+        }
 
-		if (!$node->args[0] instanceof Arg || !$node->args[1] instanceof Arg)
-		{
-			return false;
-		}
+        if (!$node->args[0] instanceof Arg || !$node->args[1] instanceof Arg) {
+            return false;
+        }
 
-		return $node->args[0]->value instanceof String_;
-	}
+        return $node->args[0]->value instanceof String_;
+    }
 }

@@ -41,26 +41,27 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  */
 final class CurrentUserInterfaceGetUserRector extends AbstractRector
 {
-	private const FACTORY_FQN     = 'Joomla\CMS\Factory';
-	private const STATIC_CALLERS  = ['Factory', 'JFactory'];
-	private const TARGET_INTERFACE = 'Joomla\CMS\User\CurrentUserInterface';
+    private const FACTORY_FQN      = 'Joomla\CMS\Factory';
+    private const STATIC_CALLERS   = ['Factory', 'JFactory'];
+    private const TARGET_INTERFACE = 'Joomla\CMS\User\CurrentUserInterface';
 
-	public function __construct(
-		private readonly ReflectionProvider $reflectionProvider,
-	) {}
+    public function __construct(
+        private readonly ReflectionProvider $reflectionProvider,
+    ) {
+    }
 
-	public function getNodeTypes(): array
-	{
-		return [Class_::class];
-	}
+    public function getNodeTypes(): array
+    {
+        return [Class_::class];
+    }
 
-	public function getRuleDefinition(): RuleDefinition
-	{
-		return new RuleDefinition(
-			'Replace Factory::getUser() / JFactory::getUser() with $this->getCurrentUser() in classes implementing CurrentUserInterface',
-			[
-				new CodeSample(
-					<<<'CODE_SAMPLE'
+    public function getRuleDefinition(): RuleDefinition
+    {
+        return new RuleDefinition(
+            'Replace Factory::getUser() / JFactory::getUser() with $this->getCurrentUser() in classes implementing CurrentUserInterface',
+            [
+                new CodeSample(
+                    <<<'CODE_SAMPLE'
 class ExampleController implements \Joomla\CMS\User\CurrentUserInterface
 {
     public function isAllowed(): bool
@@ -70,7 +71,7 @@ class ExampleController implements \Joomla\CMS\User\CurrentUserInterface
     }
 }
 CODE_SAMPLE,
-					<<<'CODE_SAMPLE'
+                    <<<'CODE_SAMPLE'
 class ExampleController implements \Joomla\CMS\User\CurrentUserInterface
 {
     public function isAllowed(): bool
@@ -80,93 +81,83 @@ class ExampleController implements \Joomla\CMS\User\CurrentUserInterface
     }
 }
 CODE_SAMPLE
-				),
-			]
-		);
-	}
+                ),
+            ]
+        );
+    }
 
-	public function refactor(Node $node): ?Node
-	{
-		/** @var Class_ $node */
-		if (!$this->implementsCurrentUserInterface($node))
-		{
-			return null;
-		}
+    public function refactor(Node $node): ?Node
+    {
+        /** @var Class_ $node */
+        if (!$this->implementsCurrentUserInterface($node)) {
+            return null;
+        }
 
-		$hasChanged = false;
+        $hasChanged = false;
 
-		$this->traverseNodesWithCallable($node->stmts, function (Node $subNode) use (&$hasChanged): ?Node {
-			if (!$this->isGetUserStaticCall($subNode))
-			{
-				return null;
-			}
+        $this->traverseNodesWithCallable($node->stmts, function (Node $subNode) use (&$hasChanged): ?Node {
+            if (!$this->isGetUserStaticCall($subNode)) {
+                return null;
+            }
 
-			$hasChanged = true;
+            $hasChanged = true;
 
-			return new MethodCall(new Variable('this'), 'getCurrentUser');
-		});
+            return new MethodCall(new Variable('this'), 'getCurrentUser');
+        });
 
-		return $hasChanged ? $node : null;
-	}
+        return $hasChanged ? $node : null;
+    }
 
-	// -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
-	private function implementsCurrentUserInterface(Class_ $class): bool
-	{
-		// Direct: check the implements list in the AST (no reflection needed)
-		foreach ($class->implements as $implement)
-		{
-			if (ltrim($implement->toString(), '\\') === self::TARGET_INTERFACE)
-			{
-				return true;
-			}
-		}
+    private function implementsCurrentUserInterface(Class_ $class): bool
+    {
+        // Direct: check the implements list in the AST (no reflection needed)
+        foreach ($class->implements as $implement) {
+            if (ltrim($implement->toString(), '\\') === self::TARGET_INTERFACE) {
+                return true;
+            }
+        }
 
-		// Indirect: use PHPStan reflection to detect implementation through parent classes.
-		// Requires the Joomla 4 class hierarchy to be available to PHPStan.
-		$className = $this->getName($class);
+        // Indirect: use PHPStan reflection to detect implementation through parent classes.
+        // Requires the Joomla 4 class hierarchy to be available to PHPStan.
+        $className = $this->getName($class);
 
-		if ($className === null)
-		{
-			return false;
-		}
+        if ($className === null) {
+            return false;
+        }
 
-		if (!$this->reflectionProvider->hasClass($className)
-			|| !$this->reflectionProvider->hasClass(self::TARGET_INTERFACE))
-		{
-			return false;
-		}
+        if (!$this->reflectionProvider->hasClass($className)
+            || !$this->reflectionProvider->hasClass(self::TARGET_INTERFACE)) {
+            return false;
+        }
 
-		return $this->reflectionProvider->getClass($className)->implementsInterface(self::TARGET_INTERFACE);
-	}
+        return $this->reflectionProvider->getClass($className)->implementsInterface(self::TARGET_INTERFACE);
+    }
 
-	/**
-	 * Matches: Factory::getUser()  |  JFactory::getUser()  |  \Joomla\CMS\Factory::getUser()
-	 */
-	private function isGetUserStaticCall(Node $node): bool
-	{
-		if (!$node instanceof StaticCall)
-		{
-			return false;
-		}
+    /**
+     * Matches: Factory::getUser()  |  JFactory::getUser()  |  \Joomla\CMS\Factory::getUser()
+     */
+    private function isGetUserStaticCall(Node $node): bool
+    {
+        if (!$node instanceof StaticCall) {
+            return false;
+        }
 
-		if (!$node->name instanceof Identifier || $node->name->name !== 'getUser')
-		{
-			return false;
-		}
+        if (!$node->name instanceof Identifier || $node->name->name !== 'getUser') {
+            return false;
+        }
 
-		if (count($node->args) !== 0)
-		{
-			return false;
-		}
+        if (\count($node->args) !== 0) {
+            return false;
+        }
 
-		if (!$node->class instanceof Name)
-		{
-			return false;
-		}
+        if (!$node->class instanceof Name) {
+            return false;
+        }
 
-		$callerName = ltrim($node->class->toString(), '\\');
+        $callerName = ltrim($node->class->toString(), '\\');
 
-		return in_array($callerName, [...self::STATIC_CALLERS, self::FACTORY_FQN], true);
-	}
+        return \in_array($callerName, [...self::STATIC_CALLERS, self::FACTORY_FQN], true);
+    }
 }

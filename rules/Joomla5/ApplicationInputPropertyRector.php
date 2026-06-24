@@ -116,7 +116,7 @@ CODE_SAMPLE
 
             $varName = $this->getName($subNode->var);
 
-            if ($varName === null || !in_array($varName, $appVarNames, true)) {
+            if ($varName === null || !\in_array($varName, $appVarNames, true)) {
                 return null;
             }
 
@@ -174,7 +174,7 @@ CODE_SAMPLE
                 return false;
             }
 
-            return in_array($node->class->toString(), self::GET_APPLICATION_CLASSES, true);
+            return \in_array($node->class->toString(), self::GET_APPLICATION_CLASSES, true);
         }
 
         // Instance call: $this->getApplication()

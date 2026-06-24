@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Joomla 3 Component Upgrade Rectors
  *
@@ -13,9 +14,9 @@ use Joomla\Rector\Joomla3\MVC\RenamedClassHandlerService;
 use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
-	$rectorConfig->singleton(RenamedClassHandlerService::class, static function () {
-		return new RenamedClassHandlerService(realpath(__DIR__ . '/../'));
-	});
+    $rectorConfig->singleton(RenamedClassHandlerService::class, static function () {
+        return new RenamedClassHandlerService(realpath(__DIR__ . '/../'));
+    });
 
-	$rectorConfig->rule(JoomlaPostRefactoringClassRenameRector::class);
+    $rectorConfig->rule(JoomlaPostRefactoringClassRenameRector::class);
 };

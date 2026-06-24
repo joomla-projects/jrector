@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Joomla 3 Component Upgrade Rectors
  *
@@ -32,347 +33,324 @@ use Webmozart\Assert\Assert;
  */
 class LegacyMVCToJ4Rector extends AbstractRector implements ConfigurableRectorInterface
 {
-	use JoomlaNamespaceHandlingTrait;
+    use JoomlaNamespaceHandlingTrait;
 
-	/**
-	 * The configuration mapping legacy class prefixes to Joomla 4 namespaces.
-	 *
-	 * @since 1.0.0
-	 * @var   JoomlaLegacyPrefixToNamespace[]
-	 */
-	protected $legacyPrefixesToNamespaces = [];
+    /**
+     * The configuration mapping legacy class prefixes to Joomla 4 namespaces.
+     *
+     * @since 1.0.0
+     * @var   JoomlaLegacyPrefixToNamespace[]
+     */
+    protected $legacyPrefixesToNamespaces = [];
 
-	/**
-	 * The new namespace being applied to the current class file being refactored.
-	 *
-	 * @since 1.0.0
-	 * @var   null|string
-	 * @readonly
-	 */
-	protected $newNamespace = null;
+    /**
+     * The new namespace being applied to the current class file being refactored.
+     *
+     * @since 1.0.0
+     * @var   null|string
+     * @readonly
+     */
+    protected $newNamespace = null;
 
-	/**
-	 * Public constructor.
-	 *
-	 * @param   RenamedClassHandlerService  $renamedClassHandlerService
-	 * @param   FileRenameCollectorService  $fileRenameCollectorService
-	 *
-	 * @since   1.0.0
-	 */
-	public function __construct(
-		private readonly RenamedClassHandlerService $renamedClassHandlerService,
-		protected readonly FileRenameCollectorService $fileRenameCollectorService
-	)
-	{
-	}
+    /**
+     * Public constructor.
+     *
+     * @param   RenamedClassHandlerService  $renamedClassHandlerService
+     * @param   FileRenameCollectorService  $fileRenameCollectorService
+     *
+     * @since   1.0.0
+     */
+    public function __construct(
+        private readonly RenamedClassHandlerService $renamedClassHandlerService,
+        protected readonly FileRenameCollectorService $fileRenameCollectorService
+    ) {
+    }
 
-	/**
-	 * Configuration handler. Called internally by Rector.
-	 *
-	 * @param   JoomlaLegacyPrefixToNamespace[]  $configuration
-	 *
-	 * @since   1.0.0
-	 */
-	public function configure(array $configuration): void
-	{
-		Assert::allIsAOf($configuration, JoomlaLegacyPrefixToNamespace::class);
-		$this->legacyPrefixesToNamespaces = $configuration;
-	}
+    /**
+     * Configuration handler. Called internally by Rector.
+     *
+     * @param   JoomlaLegacyPrefixToNamespace[]  $configuration
+     *
+     * @since   1.0.0
+     */
+    public function configure(array $configuration): void
+    {
+        Assert::allIsAOf($configuration, JoomlaLegacyPrefixToNamespace::class);
+        $this->legacyPrefixesToNamespaces = $configuration;
+    }
 
-	/**
-	 * Tell Rector which AST node types we can handle with this rule.
-	 *
-	 * @return  array<class-string<Node>>
-	 * @since   1.0.0
-	 */
-	public function getNodeTypes(): array
-	{
-		return [
-			FileNode::class, Namespace_::class,
-		];
-	}
+    /**
+     * Tell Rector which AST node types we can handle with this rule.
+     *
+     * @return  array<class-string<Node>>
+     * @since   1.0.0
+     */
+    public function getNodeTypes(): array
+    {
+        return [
+            FileNode::class, Namespace_::class,
+        ];
+    }
 
-	/**
-	 * Get the rule definition.
-	 *
-	 * This was used to generate the initial test fixture.
-	 *
-	 * @return  RuleDefinition
-	 * @throws  \Symplify\RuleDocGenerator\Exception\PoorDocumentationException
-	 * @since   1.0.0
-	 */
-	public function getRuleDefinition(): RuleDefinition
-	{
-		return new RuleDefinition('Convert legacy Joomla 3 MVC class names into Joomla 4 namespaced ones.', [
-			new CodeSample(
-				<<<'CODE_SAMPLE'
+    /**
+     * Get the rule definition.
+     *
+     * This was used to generate the initial test fixture.
+     *
+     * @return  RuleDefinition
+     * @throws  \Symplify\RuleDocGenerator\Exception\PoorDocumentationException
+     * @since   1.0.0
+     */
+    public function getRuleDefinition(): RuleDefinition
+    {
+        return new RuleDefinition('Convert legacy Joomla 3 MVC class names into Joomla 4 namespaced ones.', [
+            new CodeSample(
+                <<<'CODE_SAMPLE'
 /** @var FooModelBar $someModel */
 $model = new FooModelBar;
 CODE_SAMPLE
-				, <<<'CODE_SAMPLE'
+                ,
+                <<<'CODE_SAMPLE'
 /** @var \Acme\Foo\BarModel $someModel */
 $model = new BarModel;
 CODE_SAMPLE
-			),
-		]);
-	}
+            ),
+        ]);
+    }
 
-	/**
-	 * Performs the refactoring on the supported nodes.
-	 *
-	 * @param   FileNode|Namespace_  $node
-	 *
-	 * @since   1.0.0
-	 */
-	public function refactor(Node $node): ?Node
-	{
-		$this->newNamespace = null;
+    /**
+     * Performs the refactoring on the supported nodes.
+     *
+     * @param   FileNode|Namespace_  $node
+     *
+     * @since   1.0.0
+     */
+    public function refactor(Node $node): ?Node
+    {
+        $this->newNamespace = null;
 
-		if ($node instanceof FileNode)
-		{
-			$changedStmts = $this->refactorStmts($node->stmts, true);
+        if ($node instanceof FileNode) {
+            $changedStmts = $this->refactorStmts($node->stmts, true);
 
-			if ($changedStmts === null)
-			{
-				return null;
-			}
+            if ($changedStmts === null) {
+                return null;
+            }
 
-			$node->stmts = $changedStmts;
+            $node->stmts = $changedStmts;
 
-			// Add a new namespace?
-			if ($this->newNamespace !== null)
-			{
-				return new Namespace_(new Name($this->newNamespace), $changedStmts);
-			}
-		}
+            // Add a new namespace?
+            if ($this->newNamespace !== null) {
+                return new Namespace_(new Name($this->newNamespace), $changedStmts);
+            }
+        }
 
-		if ($node instanceof Namespace_)
-		{
-			return $this->refactorNamespace($node);
-		}
+        if ($node instanceof Namespace_) {
+            return $this->refactorNamespace($node);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	/**
-	 * Processes an Identifier node that is a class declaration name
-	 *
-	 * @param   Identifier  $identifier          The node to process
-	 * @param   string      $prefix              The legacy Joomla 3 prefix, e.g. Example
-	 * @param   string      $newNamespacePrefix  The Joomla 4 common namespace prefix e.g. \Acme\Example
-	 * @param   bool        $isNewFile           Is this a file without a namespace already defined?
-	 *
-	 * @return  Identifier|null  The refactored identifier; null if no refactoring is necessary / possible
-	 * @throws  ShouldNotHappenException  A file had two classes in it yielding different namespaces. Don't do that!
-	 * @since   1.0.0
-	 */
-	protected function processIdentifier(Identifier $identifier, string $prefix, string $newNamespacePrefix, bool $isNewFile = false): ?Identifier
-	{
-		$name = $this->getName($identifier);
+    /**
+     * Processes an Identifier node that is a class declaration name
+     *
+     * @param   Identifier  $identifier          The node to process
+     * @param   string      $prefix              The legacy Joomla 3 prefix, e.g. Example
+     * @param   string      $newNamespacePrefix  The Joomla 4 common namespace prefix e.g. \Acme\Example
+     * @param   bool        $isNewFile           Is this a file without a namespace already defined?
+     *
+     * @return  Identifier|null  The refactored identifier; null if no refactoring is necessary / possible
+     * @throws  ShouldNotHappenException  A file had two classes in it yielding different namespaces. Don't do that!
+     * @since   1.0.0
+     */
+    protected function processIdentifier(Identifier $identifier, string $prefix, string $newNamespacePrefix, bool $isNewFile = false): ?Identifier
+    {
+        $name = $this->getName($identifier);
 
-		if ($name === null)
-		{
-			return null;
-		}
+        if ($name === null) {
+            return null;
+        }
 
-		$newNamespace    = '';
-		$lastNewNamePart = $name;
-		$fqn             = $this->legacyClassNameToNamespaced($name, $prefix, $newNamespacePrefix, $isNewFile);
+        $newNamespace    = '';
+        $lastNewNamePart = $name;
+        $fqn             = $this->legacyClassNameToNamespaced($name, $prefix, $newNamespacePrefix, $isNewFile);
 
-		if ($fqn === $name)
-		{
-			return $identifier;
-		}
+        if ($fqn === $name) {
+            return $identifier;
+        }
 
-		$this->renamedClassHandlerService->addEntry($name, $fqn, $newNamespacePrefix);
+        $this->renamedClassHandlerService->addEntry($name, $fqn, $newNamespacePrefix);
 
-		$bits = explode('\\', $fqn);
+        $bits = explode('\\', $fqn);
 
-		if (count($bits) > 1)
-		{
-			$lastNewNamePart = array_pop($bits);
-			$newNamespace    = implode('\\', $bits);
-		}
+        if (\count($bits) > 1) {
+            $lastNewNamePart = array_pop($bits);
+            $newNamespace    = implode('\\', $bits);
+        }
 
-		if ($this->newNamespace !== null && $this->newNamespace !== $newNamespace)
-		{
-			throw new ShouldNotHappenException('There cannot be 2 different namespaces in one file');
-		}
+        if ($this->newNamespace !== null && $this->newNamespace !== $newNamespace) {
+            throw new ShouldNotHappenException('There cannot be 2 different namespaces in one file');
+        }
 
-		$this->newNamespace = $newNamespace;
-		$identifier->name   = $lastNewNamePart;
+        $this->newNamespace = $newNamespace;
+        $identifier->name   = $lastNewNamePart;
 
         $this->moveFile($newNamespacePrefix, $fqn);
 
-		return $identifier;
-	}
+        return $identifier;
+    }
 
-	/**
-	 * Process a Name node
-	 *
-	 * @param   Name    $name                The node to refactor
-	 * @param   string  $prefix              The legacy Joomla 3 prefix, e.g. Example
-	 * @param   string  $newNamespacePrefix  The Joomla 4 common namespace prefix e.g. \Acme\Example
-	 * @param   bool    $isNewFile           Is this a file without a namespace already defined?
-	 *
-	 * @return  Name  The refactored Node. Original node if nothing was refactored.
-	 * @since   1.0.0
-	 */
-	protected function processName(Name $name, string $prefix, string $newNamespace, bool $isNewFile = false): Name
-	{
-		// The class name
-		$legacyClassName = $this->getName($name);
+    /**
+     * Process a Name node
+     *
+     * @param   Name    $name                The node to refactor
+     * @param   string  $prefix              The legacy Joomla 3 prefix, e.g. Example
+     * @param   string  $newNamespacePrefix  The Joomla 4 common namespace prefix e.g. \Acme\Example
+     * @param   bool    $isNewFile           Is this a file without a namespace already defined?
+     *
+     * @return  Name  The refactored Node. Original node if nothing was refactored.
+     * @since   1.0.0
+     */
+    protected function processName(Name $name, string $prefix, string $newNamespace, bool $isNewFile = false): Name
+    {
+        // The class name
+        $legacyClassName = $this->getName($name);
 
-		$fqn = $this->legacyClassNameToNamespaced($legacyClassName, $prefix, $newNamespace, $isNewFile);
+        $fqn = $this->legacyClassNameToNamespaced($legacyClassName, $prefix, $newNamespace, $isNewFile);
 
-		if ($fqn === $legacyClassName)
-		{
-			return $name;
-		}
+        if ($fqn === $legacyClassName) {
+            return $name;
+        }
 
-		$name->name = $fqn;
+        $name->name = $fqn;
 
-		return $name;
-	}
+        return $name;
+    }
 
-	/**
-	 * Process a Name or Identifier node but only if necessary!
-	 *
-	 * @param   Name|Identifier  $node  The node to possibly refactor
-	 *
-	 * @return  Identifier|Name|null  The refactored node; NULL if no refactoring was necessary / possible.
-	 * @since   1.0.0
-	 */
-	protected function processNameOrIdentifier($node, bool $isNewFile = false): ?Node
-	{
-		// no name → skip
-		if ($node->toString() === '')
-		{
-			return null;
-		}
+    /**
+     * Process a Name or Identifier node but only if necessary!
+     *
+     * @param   Name|Identifier  $node  The node to possibly refactor
+     *
+     * @return  Identifier|Name|null  The refactored node; NULL if no refactoring was necessary / possible.
+     * @since   1.0.0
+     */
+    protected function processNameOrIdentifier($node, bool $isNewFile = false): ?Node
+    {
+        // no name → skip
+        if ($node->toString() === '') {
+            return null;
+        }
 
-		$nodeName = $this->getName($node);
+        $nodeName = $this->getName($node);
 
-		if ($nodeName === null)
-		{
-			return null;
-		}
+        if ($nodeName === null) {
+            return null;
+        }
 
-		foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace)
-		{
-			$prefix    = $legacyPrefixToNamespace->getNamespacePrefix();
-			$supported = [
-				$prefix . 'Controller',
-				$prefix . 'Model',
-				$prefix . 'View',
-				$prefix . 'Table',
-			];
+        foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace) {
+            $prefix    = $legacyPrefixToNamespace->getNamespacePrefix();
+            $supported = [
+                $prefix . 'Controller',
+                $prefix . 'Model',
+                $prefix . 'View',
+                $prefix . 'Table',
+            ];
 
-			$matchesSupported = false;
+            $matchesSupported = false;
 
-			foreach ($supported as $supportedPrefix)
-			{
-				if (str_starts_with($nodeName, $supportedPrefix))
-				{
-					$matchesSupported = true;
-					break;
-				}
-			}
+            foreach ($supported as $supportedPrefix) {
+                if (str_starts_with($nodeName, $supportedPrefix)) {
+                    $matchesSupported = true;
+                    break;
+                }
+            }
 
-			if (!$matchesSupported)
-			{
-				continue;
-			}
+            if (!$matchesSupported) {
+                continue;
+            }
 
-			$excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
+            $excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
 
-			if ($excludedClasses !== [] && in_array($nodeName, $excludedClasses, true))
-			{
-				return null;
-			}
+            if ($excludedClasses !== [] && \in_array($nodeName, $excludedClasses, true)) {
+                return null;
+            }
 
-			if ($node instanceof Name)
-			{
-				return $this->processName($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
-			}
+            if ($node instanceof Name) {
+                return $this->processName($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
+            }
 
-			return $this->processIdentifier($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
-		}
+            return $this->processIdentifier($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	/**
-	 * Refactor a namespace node
-	 *
-	 * @param   Namespace_  $namespace  The node to possibly refactor
-	 *
-	 * @return  Namespace_|null  The refactored node; NULL if nothing is refactored
-	 * @since   1.0.0
-	 */
-	protected function refactorNamespace(Namespace_ $namespace): ?Namespace_
-	{
-		$changedStmts = $this->refactorStmts($namespace->stmts);
+    /**
+     * Refactor a namespace node
+     *
+     * @param   Namespace_  $namespace  The node to possibly refactor
+     *
+     * @return  Namespace_|null  The refactored node; NULL if nothing is refactored
+     * @since   1.0.0
+     */
+    protected function refactorNamespace(Namespace_ $namespace): ?Namespace_
+    {
+        $changedStmts = $this->refactorStmts($namespace->stmts);
 
-		if ($changedStmts === null)
-		{
-			return null;
-		}
+        if ($changedStmts === null) {
+            return null;
+        }
 
-		return $namespace;
-	}
+        return $namespace;
+    }
 
-	/**
-	 * Refactor an array of statement nodes
-	 *
-	 * @param   array  $stmts      The array of nodes to possibly refactor
-	 * @param   bool   $isNewFile  Is this a file without a namespace?
-	 *
-	 * @return  array|null  The array of refactored statements. NULL if was nothing to refactor.
-	 * @since   1.0.0
-	 */
-	protected function refactorStmts(array $stmts, bool $isNewFile = false): ?array
-	{
-		$hasChanged = \false;
+    /**
+     * Refactor an array of statement nodes
+     *
+     * @param   array  $stmts      The array of nodes to possibly refactor
+     * @param   bool   $isNewFile  Is this a file without a namespace?
+     *
+     * @return  array|null  The array of refactored statements. NULL if was nothing to refactor.
+     * @since   1.0.0
+     */
+    protected function refactorStmts(array $stmts, bool $isNewFile = false): ?array
+    {
+        $hasChanged = \false;
 
-		$this->traverseNodesWithCallable($stmts, function (Node $node) use (&$hasChanged, $isNewFile): ?Node {
-			// Process Name nodes (type hints, extends, new expressions, etc.)
-			if ($node instanceof Name)
-			{
-				$changedNode = $this->processNameOrIdentifier($node, $isNewFile);
+        $this->traverseNodesWithCallable($stmts, function (Node $node) use (&$hasChanged, $isNewFile): ?Node {
+            // Process Name nodes (type hints, extends, new expressions, etc.)
+            if ($node instanceof Name) {
+                $changedNode = $this->processNameOrIdentifier($node, $isNewFile);
 
-				if ($changedNode instanceof Node)
-				{
-					$hasChanged = \true;
+                if ($changedNode instanceof Node) {
+                    $hasChanged = \true;
 
-					return $changedNode;
-				}
+                    return $changedNode;
+                }
 
-				return null;
-			}
+                return null;
+            }
 
-			// Process class declaration names directly from the Class_ node
-			if ($node instanceof Class_ && $node->name instanceof Identifier)
-			{
-				$changedIdentifier = $this->processNameOrIdentifier($node->name, $isNewFile);
+            // Process class declaration names directly from the Class_ node
+            if ($node instanceof Class_ && $node->name instanceof Identifier) {
+                $changedIdentifier = $this->processNameOrIdentifier($node->name, $isNewFile);
 
-				if ($changedIdentifier instanceof Identifier)
-				{
-					$node->name = $changedIdentifier;
-					$hasChanged = \true;
+                if ($changedIdentifier instanceof Identifier) {
+                    $node->name = $changedIdentifier;
+                    $hasChanged = \true;
 
-					return $node;
-				}
-			}
+                    return $node;
+                }
+            }
 
-			return null;
-		});
+            return null;
+        });
 
-		if ($hasChanged)
-		{
-			return $stmts;
-		}
+        if ($hasChanged) {
+            return $stmts;
+        }
 
-		return null;
-	}
+        return null;
+    }
 }

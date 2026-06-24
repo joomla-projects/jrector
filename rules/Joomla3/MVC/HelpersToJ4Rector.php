@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Joomla 3 Component Upgrade Rectors
  *
@@ -25,87 +26,82 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  */
 final class HelpersToJ4Rector extends LegacyMVCToJ4Rector implements ConfigurableRectorInterface
 {
-	use JoomlaNamespaceHandlingTrait;
+    use JoomlaNamespaceHandlingTrait;
 
-	/**
-	 * Get the rule definition.
-	 *
-	 * This was used to generate the initial test fixture.
-	 *
-	 * @return  RuleDefinition
-	 * @throws  \Symplify\RuleDocGenerator\Exception\PoorDocumentationException
-	 * @since   1.0.0
-	 */
-	public function getRuleDefinition(): RuleDefinition
-	{
-		return new RuleDefinition('Convert legacy Joomla 3 Helper class names into Joomla 4 namespaced ones.', [
-			new CodeSample(
-				<<<'CODE_SAMPLE'
+    /**
+     * Get the rule definition.
+     *
+     * This was used to generate the initial test fixture.
+     *
+     * @return  RuleDefinition
+     * @throws  \Symplify\RuleDocGenerator\Exception\PoorDocumentationException
+     * @since   1.0.0
+     */
+    public function getRuleDefinition(): RuleDefinition
+    {
+        return new RuleDefinition('Convert legacy Joomla 3 Helper class names into Joomla 4 namespaced ones.', [
+            new CodeSample(
+                <<<'CODE_SAMPLE'
 abstract class HelloWorldHelper extends \Joomla\CMS\Helper\ContentHelper
 {
 }
 CODE_SAMPLE
-				, <<<'CODE_SAMPLE'
+                ,
+                <<<'CODE_SAMPLE'
 namespace Acme\Example\Administrator\Helper;
 
 abstract class HelloworldHelper extends \Joomla\CMS\Helper\ContentHelper
 {
 }
 CODE_SAMPLE
-			),
-		]);
-	}
+            ),
+        ]);
+    }
 
-	/**
-	 * Process a Name or Identifier node but only if necessary!
-	 *
-	 * @param   Name|Identifier  $node  The node to possibly refactor
-	 *
-	 * @return  Identifier|Name|null  The refactored node; NULL if no refactoring was necessary / possible.
-	 * @since   1.0.0
-	 */
-	protected function processNameOrIdentifier($node, bool $isNewFile = false): ?Node
-	{
-		// no name → skip
-		if ($node->toString() === '')
-		{
-			return null;
-		}
+    /**
+     * Process a Name or Identifier node but only if necessary!
+     *
+     * @param   Name|Identifier  $node  The node to possibly refactor
+     *
+     * @return  Identifier|Name|null  The refactored node; NULL if no refactoring was necessary / possible.
+     * @since   1.0.0
+     */
+    protected function processNameOrIdentifier($node, bool $isNewFile = false): ?Node
+    {
+        // no name → skip
+        if ($node->toString() === '') {
+            return null;
+        }
 
-		$nodeName = $this->getName($node);
+        $nodeName = $this->getName($node);
 
-		if ($nodeName === null)
-		{
-			return null;
-		}
+        if ($nodeName === null) {
+            return null;
+        }
 
-		foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace)
-		{
-			$prefix = $legacyPrefixToNamespace->getNamespacePrefix();
+        foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace) {
+            $prefix = $legacyPrefixToNamespace->getNamespacePrefix();
 
-			$matchesPrefix = str_starts_with($nodeName, $prefix . 'Helper')
-				|| (str_starts_with($nodeName, $prefix) && str_ends_with($nodeName, 'Helper'));
+            $matchesPrefix = str_starts_with($nodeName, $prefix . 'Helper')
+                || (str_starts_with($nodeName, $prefix) && str_ends_with($nodeName, 'Helper'));
 
-			if (!$matchesPrefix)
-			{
-				continue;
-			}
+            if (!$matchesPrefix) {
+                continue;
+            }
 
-			$excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
+            $excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
 
-			if ($excludedClasses !== [] && in_array($nodeName, $excludedClasses, true))
-			{
-				return null;
-			}
+            if ($excludedClasses !== [] && \in_array($nodeName, $excludedClasses, true)) {
+                return null;
+            }
 
-			if ($node instanceof Name)
-			{
-				return $this->processName($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
-			}
+            if ($node instanceof Name) {
+                return $this->processName($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
+            }
 
-			return $this->processIdentifier($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
-		}
+            return $this->processIdentifier($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
+        }
 
-		return null;
-	}
+        return null;
+    }
 }

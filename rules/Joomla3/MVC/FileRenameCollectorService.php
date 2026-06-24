@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Joomla 3 Component Upgrade Rectors
  *
@@ -23,95 +24,92 @@ namespace Joomla\Rector\Joomla3\MVC;
  */
 final class FileRenameCollectorService
 {
-	/**
-	 * Pending renames, indexed by project root then old path.
-	 *
-	 * @var array<string, array<string, string>>
-	 */
-	private array $renames = [];
+    /**
+     * Pending renames, indexed by project root then old path.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private array $renames = [];
 
-	/**
-	 * Write rename.php files on service destruction.
-	 *
-	 * @since  1.0.0
-	 */
-	public function __destruct()
-	{
-		foreach ($this->renames as $projectRoot => $pairs)
-		{
-			$this->writeRenameScript($projectRoot, $pairs);
-		}
-	}
+    /**
+     * Write rename.php files on service destruction.
+     *
+     * @since  1.0.0
+     */
+    public function __destruct()
+    {
+        foreach ($this->renames as $projectRoot => $pairs) {
+            $this->writeRenameScript($projectRoot, $pairs);
+        }
+    }
 
-	/**
-	 * Register a pending file rename.
-	 *
-	 * @param   string  $projectRoot  Absolute path to the component root (where rename.php will be written).
-	 * @param   string  $oldPath      Absolute path of the file before renaming.
-	 * @param   string  $newPath      Absolute path of the file after renaming.
-	 *
-	 * @return  void
-	 * @since   1.0.0
-	 */
-	public function addRename(string $projectRoot, string $oldPath, string $newPath): void
-	{
-		$this->renames[$projectRoot][$oldPath] = $newPath;
-	}
+    /**
+     * Register a pending file rename.
+     *
+     * @param   string  $projectRoot  Absolute path to the component root (where rename.php will be written).
+     * @param   string  $oldPath      Absolute path of the file before renaming.
+     * @param   string  $newPath      Absolute path of the file after renaming.
+     *
+     * @return  void
+     * @since   1.0.0
+     */
+    public function addRename(string $projectRoot, string $oldPath, string $newPath): void
+    {
+        $this->renames[$projectRoot][$oldPath] = $newPath;
+    }
 
-	/**
-	 * Returns all collected renames, indexed by project root.
-	 *
-	 * @return  array<string, array<string, string>>
-	 * @since   1.0.0
-	 */
-	public function getRenames(): array
-	{
-		return $this->renames;
-	}
+    /**
+     * Returns all collected renames, indexed by project root.
+     *
+     * @return  array<string, array<string, string>>
+     * @since   1.0.0
+     */
+    public function getRenames(): array
+    {
+        return $this->renames;
+    }
 
-	// -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
-	/**
-	 * Generates and writes rename.php into $projectRoot.
-	 *
-	 * Paths inside the generated script are relative to the project root so the
-	 * script remains portable across machines.
-	 *
-	 * @param   string               $projectRoot  Absolute path to the project root.
-	 * @param   array<string,string> $pairs        Map of absolute oldPath => absolute newPath.
-	 *
-	 * @return  void
-	 * @since   1.0.0
-	 */
-	private function writeRenameScript(string $projectRoot, array $pairs): void
-	{
-		if (empty($pairs))
-		{
-			return;
-		}
+    /**
+     * Generates and writes rename.php into $projectRoot.
+     *
+     * Paths inside the generated script are relative to the project root so the
+     * script remains portable across machines.
+     *
+     * @param   string               $projectRoot  Absolute path to the project root.
+     * @param   array<string,string> $pairs        Map of absolute oldPath => absolute newPath.
+     *
+     * @return  void
+     * @since   1.0.0
+     */
+    private function writeRenameScript(string $projectRoot, array $pairs): void
+    {
+        if (empty($pairs)) {
+            return;
+        }
 
-		$projectRoot = rtrim(str_replace('\\', '/', $projectRoot), '/');
-		$entries     = [];
+        $projectRoot = rtrim(str_replace('\\', '/', $projectRoot), '/');
+        $entries     = [];
 
-		foreach ($pairs as $oldAbsolute => $newAbsolute)
-		{
-			$oldAbsolute = str_replace('\\', '/', $oldAbsolute);
-			$newAbsolute = str_replace('\\', '/', $newAbsolute);
+        foreach ($pairs as $oldAbsolute => $newAbsolute) {
+            $oldAbsolute = str_replace('\\', '/', $oldAbsolute);
+            $newAbsolute = str_replace('\\', '/', $newAbsolute);
 
-			$relFrom = ltrim(substr($oldAbsolute, strlen($projectRoot)), '/');
-			$relTo   = ltrim(substr($newAbsolute, strlen($projectRoot)), '/');
+            $relFrom = ltrim(substr($oldAbsolute, \strlen($projectRoot)), '/');
+            $relTo   = ltrim(substr($newAbsolute, \strlen($projectRoot)), '/');
 
-			$entries[] = sprintf(
-				"    %-60s => %s,",
-				var_export($relFrom, true),
-				var_export($relTo, true)
-			);
-		}
+            $entries[] = \sprintf(
+                "    %-60s => %s,",
+                var_export($relFrom, true),
+                var_export($relTo, true)
+            );
+        }
 
-		$entriesCode = implode("\n", $entries);
-		$generatedAt = date('Y-m-d H:i:s');
+        $entriesCode = implode("\n", $entries);
+        $generatedAt = date('Y-m-d H:i:s');
 
-		$script = <<<PHP
+        $script = <<<PHP
 <?php
 /**
  * Joomla component file renamer
@@ -172,6 +170,6 @@ foreach (\$renames as \$from => \$to)
 echo "\\nDone: {\$moved} moved, {\$skipped} skipped, {\$errors} errors.\\n";
 PHP;
 
-		file_put_contents($projectRoot . '/rename.php', $script);
-	}
+        file_put_contents($projectRoot . '/rename.php', $script);
+    }
 }

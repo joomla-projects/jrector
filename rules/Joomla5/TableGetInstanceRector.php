@@ -160,7 +160,7 @@ CODE_SAMPLE,
         }
 
         // If a second argument (prefix) is given, only accept the default 'JTable'
-        if (count($call->args) >= 2) {
+        if (\count($call->args) >= 2) {
             $secondArg = $call->args[1];
 
             if (!$secondArg instanceof Arg || !$secondArg->value instanceof String_) {

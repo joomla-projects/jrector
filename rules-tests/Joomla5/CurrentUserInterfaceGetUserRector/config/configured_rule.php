@@ -14,9 +14,9 @@ use Joomla\Rector\Joomla5\CurrentUserInterfaceGetUserRector;
 use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
-	$rectorConfig->rule(CurrentUserInterfaceGetUserRector::class);
+    $rectorConfig->rule(CurrentUserInterfaceGetUserRector::class);
 
-	$rectorConfig->autoloadPaths([
-		__DIR__ . '/../../../../joomla',
-	]);
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/../../../../joomla',
+    ]);
 };

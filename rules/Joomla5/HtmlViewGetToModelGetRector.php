@@ -104,6 +104,7 @@ CODE_SAMPLE
     /**
      * Replace all $this->get('...') calls in a method with $model->get...() calls.
      * Adds a @var typehint comment and prepends $model = $this->getModel() if not already present.
+     * Moves an existing $model = $this->getModel() to before the first $model usage if necessary.
      *
      * @return bool Whether the method was changed.
      */
@@ -144,11 +145,22 @@ CODE_SAMPLE
             return new MethodCall(new Variable('model'), $newMethodName);
         });
 
-        // Annotate or add $model = $this->getModel()
-        $getModelStmt = $this->findGetModelStatement($classMethod);
+        // Locate existing $model = $this->getModel() statement
+        $getModelResult = $this->findGetModelStatementWithIndex($classMethod);
 
-        if ($getModelStmt !== null) {
-            // Existing statement found — add comment if FQN derivable and not already set
+        if ($getModelResult !== null) {
+            [$getModelStmt, $getModelIdx] = $getModelResult;
+
+            // After the $this->get() → $model->get() replacement the assignment may now
+            // sit below the first statement that reads $model. Move it up if needed.
+            $firstUsageIdx = $this->findFirstModelVariableUsageIndex($classMethod->stmts, $getModelIdx);
+
+            if ($firstUsageIdx < $getModelIdx) {
+                array_splice($classMethod->stmts, $getModelIdx, 1);
+                array_splice($classMethod->stmts, $firstUsageIdx, 0, [$getModelStmt]);
+            }
+
+            // Add @var typehint if FQN is known and not already annotated
             if ($modelFqn !== null && $getModelStmt->getDocComment() === null) {
                 $getModelStmt->setDocComment(new Doc('/** @var \\' . $modelFqn . ' $model */'));
             }
@@ -223,10 +235,13 @@ CODE_SAMPLE
 
     /**
      * Find a top-level $model = $this->getModel() statement in the method body.
+     * Returns [Expression $stmt, int $index] or null.
+     *
+     * @return array{0: Expression, 1: int}|null
      */
-    private function findGetModelStatement(ClassMethod $classMethod): ?Expression
+    private function findGetModelStatementWithIndex(ClassMethod $classMethod): ?array
     {
-        foreach ($classMethod->stmts ?? [] as $stmt) {
+        foreach ($classMethod->stmts ?? [] as $idx => $stmt) {
             if (!$stmt instanceof Expression || !$stmt->expr instanceof Assign) {
                 continue;
             }
@@ -248,11 +263,41 @@ CODE_SAMPLE
             }
 
             if ($call->name instanceof Identifier && $call->name->name === 'getModel') {
-                return $stmt;
+                return [$stmt, $idx];
             }
         }
 
         return null;
+    }
+
+    /**
+     * Find the index of the first top-level statement that reads the $model variable.
+     * The statement at $excludeIdx (the $model = $this->getModel() assignment) is skipped.
+     * Returns PHP_INT_MAX when $model is not read in any other statement.
+     */
+    private function findFirstModelVariableUsageIndex(array $stmts, int $excludeIdx): int
+    {
+        foreach ($stmts as $idx => $stmt) {
+            if ($idx === $excludeIdx) {
+                continue;
+            }
+
+            $hasUsage = false;
+
+            $this->traverseNodesWithCallable([$stmt], function (Node $node) use (&$hasUsage): ?Node {
+                if ($node instanceof Variable && $this->isName($node, 'model')) {
+                    $hasUsage = true;
+                }
+
+                return null;
+            });
+
+            if ($hasUsage) {
+                return $idx;
+            }
+        }
+
+        return PHP_INT_MAX;
     }
 
     /**
@@ -274,7 +319,7 @@ CODE_SAMPLE
             return null;
         }
 
-        $base = substr($modelFqn, 0, -strlen('\\HtmlView'));
+        $base = substr($modelFqn, 0, -\strlen('\\HtmlView'));
 
         return $base . 'Model';
     }

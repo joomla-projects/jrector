@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Joomla 3 Component Upgrade Rectors
  *
@@ -38,68 +39,67 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  */
 final class HtmlHelpersRector extends LegacyMVCToJ4Rector implements ConfigurableRectorInterface
 {
-	use JoomlaNamespaceHandlingTrait;
+    use JoomlaNamespaceHandlingTrait;
 
-	/**
-	 * @readonly
-	 * @var ClassMethodVisibilityGuard
-	 */
-	private $classMethodVisibilityGuard;
+    /**
+     * @readonly
+     * @var ClassMethodVisibilityGuard
+     */
+    private $classMethodVisibilityGuard;
 
-	/**
-	 * @readonly
-	 * @var ReflectionResolver
-	 */
-	private $reflectionResolver;
+    /**
+     * @readonly
+     * @var ReflectionResolver
+     */
+    private $reflectionResolver;
 
-	/**
-	 * @readonly
-	 * @var VisibilityManipulator
-	 */
-	private $visibilityManipulator;
+    /**
+     * @readonly
+     * @var VisibilityManipulator
+     */
+    private $visibilityManipulator;
 
-	/**
-	 * @readonly
-	 * @var BetterNodeFinder
-	 */
-	private $betterNodeFinder;
+    /**
+     * @readonly
+     * @var BetterNodeFinder
+     */
+    private $betterNodeFinder;
 
-	public function __construct(
-		RenamedClassHandlerService    $renamedClassHandlerService,
-		FileRenameCollectorService    $fileRenameCollectorService,
-		ClassMethodVisibilityGuard    $classMethodVisibilityGuard,
-		VisibilityManipulator         $visibilityManipulator,
-		ReflectionResolver            $reflectionResolver,
-		BetterNodeFinder              $betterNodeFinder
-	)
-	{
-		parent::__construct($renamedClassHandlerService, $fileRenameCollectorService);
+    public function __construct(
+        RenamedClassHandlerService    $renamedClassHandlerService,
+        FileRenameCollectorService    $fileRenameCollectorService,
+        ClassMethodVisibilityGuard    $classMethodVisibilityGuard,
+        VisibilityManipulator         $visibilityManipulator,
+        ReflectionResolver            $reflectionResolver,
+        BetterNodeFinder              $betterNodeFinder
+    ) {
+        parent::__construct($renamedClassHandlerService, $fileRenameCollectorService);
 
-		$this->classMethodVisibilityGuard = $classMethodVisibilityGuard;
-		$this->visibilityManipulator      = $visibilityManipulator;
-		$this->reflectionResolver         = $reflectionResolver;
-		$this->betterNodeFinder           = $betterNodeFinder;
-	}
+        $this->classMethodVisibilityGuard = $classMethodVisibilityGuard;
+        $this->visibilityManipulator      = $visibilityManipulator;
+        $this->reflectionResolver         = $reflectionResolver;
+        $this->betterNodeFinder           = $betterNodeFinder;
+    }
 
-	public function getNodeTypes(): array
-	{
-		return array_merge(parent::getNodeTypes(), [Class_::class, ClassMethod::class, StaticCall::class]);
-	}
+    public function getNodeTypes(): array
+    {
+        return array_merge(parent::getNodeTypes(), [Class_::class, ClassMethod::class, StaticCall::class]);
+    }
 
-	/**
-	 * Get the rule definition.
-	 *
-	 * This was used to generate the initial test fixture.
-	 *
-	 * @return  RuleDefinition
-	 * @throws  \Symplify\RuleDocGenerator\Exception\PoorDocumentationException
-	 * @since   1.0.0
-	 */
-	public function getRuleDefinition(): RuleDefinition
-	{
-		return new RuleDefinition('Convert legacy Joomla 3 HTML Helper class names into Joomla 4 namespaced ones.', [
-			new CodeSample(
-				<<<'CODE_SAMPLE'
+    /**
+     * Get the rule definition.
+     *
+     * This was used to generate the initial test fixture.
+     *
+     * @return  RuleDefinition
+     * @throws  \Symplify\RuleDocGenerator\Exception\PoorDocumentationException
+     * @since   1.0.0
+     */
+    public function getRuleDefinition(): RuleDefinition
+    {
+        return new RuleDefinition('Convert legacy Joomla 3 HTML Helper class names into Joomla 4 namespaced ones.', [
+            new CodeSample(
+                <<<'CODE_SAMPLE'
 abstract class JHtmlExample
 {
 	static function derp(): string
@@ -108,7 +108,8 @@ abstract class JHtmlExample
 	}
 }
 CODE_SAMPLE
-				, <<<'CODE_SAMPLE'
+                ,
+                <<<'CODE_SAMPLE'
 namespace Acme\Example\Administrator\Service\HTML;
 
 class Example
@@ -119,247 +120,226 @@ class Example
 	}
 }
 CODE_SAMPLE
-			),
-		]);
-	}
+            ),
+        ]);
+    }
 
-	public function refactor(Node $node): ?Node
-	{
-		// Makes sure the immediate path is /helpers/html
-		$filePath = $this->getFile()->getFilePath();
-		$filePath = str_replace('\\', '/', $filePath);
-		$pathBits = explode('/', $filePath);
+    public function refactor(Node $node): ?Node
+    {
+        // Makes sure the immediate path is /helpers/html
+        $filePath = $this->getFile()->getFilePath();
+        $filePath = str_replace('\\', '/', $filePath);
+        $pathBits = explode('/', $filePath);
 
-		if (implode('/', array_slice($pathBits, -3, 2)) !== 'helpers/html')
-		{
-			return null;
-		}
+        if (implode('/', \array_slice($pathBits, -3, 2)) !== 'helpers/html') {
+            return null;
+        }
 
-		/**
-		 * Change abstract classes to non-abstract
-		 */
-		if ($node instanceof Class_)
-		{
-			return $this->refactorClass($node);
-		}
+        /**
+         * Change abstract classes to non-abstract
+         */
+        if ($node instanceof Class_) {
+            return $this->refactorClass($node);
+        }
 
-		/**
-		 * Change static methods to non-static and refactor local static calls to non-static
-		 *
-		 * @see \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
-		 */
-		if ($node instanceof ClassMethod)
-		{
-			return $this->refactorClassMethod($node);
-		}
+        /**
+         * Change static methods to non-static and refactor local static calls to non-static
+         *
+         * @see \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
+         */
+        if ($node instanceof ClassMethod) {
+            return $this->refactorClassMethod($node);
+        }
 
-		if ($node instanceof StaticCall)
-		{
-			return $this->refactorStaticCall($node);
-		}
+        if ($node instanceof StaticCall) {
+            return $this->refactorStaticCall($node);
+        }
 
-		/**
-		 * Add namespace and move the file
-		 */
-		return parent::refactor($node);
-	}
+        /**
+         * Add namespace and move the file
+         */
+        return parent::refactor($node);
+    }
 
 
-	/**
-	 * Process a Name or Identifier node but only if necessary!
-	 *
-	 * @param   Name|Identifier  $node  The node to possibly refactor
-	 *
-	 * @return  Identifier|Name|null  The refactored node; NULL if no refactoring was necessary / possible.
-	 * @since   1.0.0
-	 */
-	protected function processNameOrIdentifier($node, bool $isNewFile = false): ?Node
-	{
-		// no name → skip
-		if ($node->toString() === '')
-		{
-			return null;
-		}
+    /**
+     * Process a Name or Identifier node but only if necessary!
+     *
+     * @param   Name|Identifier  $node  The node to possibly refactor
+     *
+     * @return  Identifier|Name|null  The refactored node; NULL if no refactoring was necessary / possible.
+     * @since   1.0.0
+     */
+    protected function processNameOrIdentifier($node, bool $isNewFile = false): ?Node
+    {
+        // no name → skip
+        if ($node->toString() === '') {
+            return null;
+        }
 
-		$nodeName = $this->getName($node);
+        $nodeName = $this->getName($node);
 
-		if ($nodeName === null)
-		{
-			return null;
-		}
+        if ($nodeName === null) {
+            return null;
+        }
 
-		// The class name must begin with a form of "JHtml".
-		if (!str_starts_with(strtolower($nodeName), 'jhtml'))
-		{
-			return null;
-		}
+        // The class name must begin with a form of "JHtml".
+        if (!str_starts_with(strtolower($nodeName), 'jhtml')) {
+            return null;
+        }
 
-		foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace)
-		{
-			$prefix          = substr($nodeName, 0, 5);
-			$excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
+        foreach ($this->legacyPrefixesToNamespaces as $legacyPrefixToNamespace) {
+            $prefix          = substr($nodeName, 0, 5);
+            $excludedClasses = $legacyPrefixToNamespace->getExcludedClasses();
 
-			if ($excludedClasses !== [] && in_array($nodeName, $excludedClasses, true))
-			{
-				return null;
-			}
+            if ($excludedClasses !== [] && \in_array($nodeName, $excludedClasses, true)) {
+                return null;
+            }
 
-			if ($node instanceof Name)
-			{
-				return $this->processName($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
-			}
+            if ($node instanceof Name) {
+                return $this->processName($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
+            }
 
-			return $this->processIdentifier($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
-		}
+            return $this->processIdentifier($node, $prefix, $legacyPrefixToNamespace->getNewNamespace(), $isNewFile);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	/**
-	 * Convert an abstract class to non-abstract
-	 *
-	 * @param   Class_  $node
-	 *
-	 * @return  Class_|null
-	 */
-	private function refactorClass(Class_ $node)
-	{
-		if (!$node->isAbstract())
-		{
-			return null;
-		}
+    /**
+     * Convert an abstract class to non-abstract
+     *
+     * @param   Class_  $node
+     *
+     * @return  Class_|null
+     */
+    private function refactorClass(Class_ $node)
+    {
+        if (!$node->isAbstract()) {
+            return null;
+        }
 
-		$node->flags = $node->flags & ~Class_::MODIFIER_ABSTRACT;
+        $node->flags = $node->flags & ~Class_::MODIFIER_ABSTRACT;
 
-		return $node;
-	}
+        return $node;
+    }
 
-	/**
-	 * Convert a static class method to non-static
-	 *
-	 * @param   ClassMethod  $classMethod
-	 *
-	 * @return  ClassMethod|null
-	 * @since   1.0.0
-	 * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
-	 */
-	private function refactorClassMethod(ClassMethod $classMethod) : ?ClassMethod
-	{
-		if (!$classMethod->isStatic())
-		{
-			return null;
-		}
+    /**
+     * Convert a static class method to non-static
+     *
+     * @param   ClassMethod  $classMethod
+     *
+     * @return  ClassMethod|null
+     * @since   1.0.0
+     * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
+     */
+    private function refactorClassMethod(ClassMethod $classMethod): ?ClassMethod
+    {
+        if (!$classMethod->isStatic()) {
+            return null;
+        }
 
-		$dirty = false;
+        $dirty = false;
 
-		if (($classMethod->flags & Class_::VISIBILITY_MODIFIER_MASK) === 0)
-		{
-			$this->visibilityManipulator->makePublic($classMethod);
+        if (($classMethod->flags & Class_::VISIBILITY_MODIFIER_MASK) === 0) {
+            $this->visibilityManipulator->makePublic($classMethod);
 
-			$dirty = true;
-		}
+            $dirty = true;
+        }
 
-		$classReflection = $this->reflectionResolver->resolveClassReflection($classMethod);
+        $classReflection = $this->reflectionResolver->resolveClassReflection($classMethod);
 
-		if (!$classReflection instanceof ClassReflection)
-		{
-			return $dirty ? $classMethod : null;
-		}
+        if (!$classReflection instanceof ClassReflection) {
+            return $dirty ? $classMethod : null;
+        }
 
-		if ($this->classMethodVisibilityGuard->isClassMethodVisibilityGuardedByParent($classMethod, $classReflection))
-		{
-			return $dirty ? $classMethod : null;
-		}
+        if ($this->classMethodVisibilityGuard->isClassMethodVisibilityGuardedByParent($classMethod, $classReflection)) {
+            return $dirty ? $classMethod : null;
+        }
 
-		// Change static calls to non-static ones, but only if in non-static method!!!
-		$this->visibilityManipulator->makeNonStatic($classMethod);
+        // Change static calls to non-static ones, but only if in non-static method!!!
+        $this->visibilityManipulator->makeNonStatic($classMethod);
 
-		return $classMethod;
-	}
+        return $classMethod;
+    }
 
-	/**
-	 * Refactor a static method call to non-static, within the same class only
-	 *
-	 * @param   StaticCall  $staticCall
-	 *
-	 * @return  MethodCall|null
-	 * @since   1.0.0
-	 * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
-	 */
-	private function refactorStaticCall(StaticCall $staticCall): ?MethodCall
-	{
-		$classLike = $this->betterNodeFinder->findParentType($staticCall, ClassLike::class);
+    /**
+     * Refactor a static method call to non-static, within the same class only
+     *
+     * @param   StaticCall  $staticCall
+     *
+     * @return  MethodCall|null
+     * @since   1.0.0
+     * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
+     */
+    private function refactorStaticCall(StaticCall $staticCall): ?MethodCall
+    {
+        $classLike = $this->betterNodeFinder->findParentType($staticCall, ClassLike::class);
 
-		if (!$classLike instanceof ClassLike)
-		{
-			return null;
-		}
+        if (!$classLike instanceof ClassLike) {
+            return null;
+        }
 
-		/** @var ClassMethod[] $classMethods */
-		$classMethods = $this->betterNodeFinder->findInstanceOf($classLike, ClassMethod::class);
+        /** @var ClassMethod[] $classMethods */
+        $classMethods = $this->betterNodeFinder->findInstanceOf($classLike, ClassMethod::class);
 
-		foreach ($classMethods as $classMethod)
-		{
-			if (!$this->isClassMethodMatchingStaticCall($classMethod, $staticCall))
-			{
-				continue;
-			}
+        foreach ($classMethods as $classMethod) {
+            if (!$this->isClassMethodMatchingStaticCall($classMethod, $staticCall)) {
+                continue;
+            }
 
-			if ($this->isInStaticClassMethod($staticCall))
-			{
-				continue;
-			}
+            if ($this->isInStaticClassMethod($staticCall)) {
+                continue;
+            }
 
-			$thisVariable = new Variable('this');
+            $thisVariable = new Variable('this');
 
-			return new MethodCall($thisVariable, $staticCall->name, $staticCall->args);
-		}
+            return new MethodCall($thisVariable, $staticCall->name, $staticCall->args);
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	/**
-	 * Are we inside a static class method?
-	 *
-	 * @param   StaticCall  $staticCall
-	 *
-	 * @return bool
-	 * @since   1.0.0
-	 * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
-	 */
-	private function isInStaticClassMethod(StaticCall $staticCall): bool
-	{
-		$locationClassMethod = $this->betterNodeFinder->findParentType($staticCall, ClassMethod::class);
+    /**
+     * Are we inside a static class method?
+     *
+     * @param   StaticCall  $staticCall
+     *
+     * @return bool
+     * @since   1.0.0
+     * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
+     */
+    private function isInStaticClassMethod(StaticCall $staticCall): bool
+    {
+        $locationClassMethod = $this->betterNodeFinder->findParentType($staticCall, ClassMethod::class);
 
-		if (!$locationClassMethod instanceof ClassMethod)
-		{
-			return \false;
-		}
+        if (!$locationClassMethod instanceof ClassMethod) {
+            return \false;
+        }
 
-		return $locationClassMethod->isStatic();
-	}
+        return $locationClassMethod->isStatic();
+    }
 
-	/**
-	 * @param   ClassMethod  $classMethod
-	 * @param   StaticCall   $staticCall
-	 *
-	 * @return bool
-	 * @since   1.0.0
-	 * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
-	 */
-	private function isClassMethodMatchingStaticCall(ClassMethod $classMethod, StaticCall $staticCall): bool
-	{
-		$classLike = $this->betterNodeFinder->findParentType($classMethod, ClassLike::class);
+    /**
+     * @param   ClassMethod  $classMethod
+     * @param   StaticCall   $staticCall
+     *
+     * @return bool
+     * @since   1.0.0
+     * @see     \Rector\RemovingStatic\Rector\ClassMethod\LocallyCalledStaticMethodToNonStaticRector
+     */
+    private function isClassMethodMatchingStaticCall(ClassMethod $classMethod, StaticCall $staticCall): bool
+    {
+        $classLike = $this->betterNodeFinder->findParentType($classMethod, ClassLike::class);
 
-		if (!$classLike instanceof ClassLike)
-		{
-			return \false;
-		}
+        if (!$classLike instanceof ClassLike) {
+            return \false;
+        }
 
-		$className  = (string) $this->nodeNameResolver->getName($classLike);
-		$objectType = new ObjectType($className);
-		$callerType = $this->nodeTypeResolver->getType($staticCall->class);
+        $className  = (string) $this->nodeNameResolver->getName($classLike);
+        $objectType = new ObjectType($className);
+        $callerType = $this->nodeTypeResolver->getType($staticCall->class);
 
-		return $objectType->equals($callerType);
-	}
+        return $objectType->equals($callerType);
+    }
 }

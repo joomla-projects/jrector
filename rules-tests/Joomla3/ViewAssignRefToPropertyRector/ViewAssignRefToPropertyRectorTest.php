@@ -1,4 +1,5 @@
 <?php
+
 /**
  * @package     Joomla.Rector
  * @subpackage  Joomla3
@@ -11,7 +12,6 @@ declare(strict_types=1);
 
 namespace Joomla\Rector\Tests\Joomla3\ViewAssignRefToPropertyRector;
 
-use Iterator;
 use Rector\Testing\PHPUnit\AbstractRectorTestCase;
 
 /**
@@ -19,24 +19,24 @@ use Rector\Testing\PHPUnit\AbstractRectorTestCase;
  */
 final class ViewAssignRefToPropertyRectorTest extends AbstractRectorTestCase
 {
-	public function provideConfigFilePath(): string
-	{
-		return __DIR__ . '/config/configured_rule.php';
-	}
+    public function provideConfigFilePath(): string
+    {
+        return __DIR__ . '/config/configured_rule.php';
+    }
 
-	/**
-	 * @return Iterator<array<int, string>>
-	 */
-	public static function provideData(): Iterator
-	{
-		return self::yieldFilesFromDirectory(__DIR__ . '/Fixture');
-	}
+    /**
+     * @return \Iterator<array<int, string>>
+     */
+    public static function provideData(): \Iterator
+    {
+        return self::yieldFilesFromDirectory(__DIR__ . '/Fixture');
+    }
 
-	/**
-	 * @dataProvider provideData()
-	 */
-	public function testRefactor(string $fixtureFilePath): void
-	{
-		$this->doTestFile($fixtureFilePath);
-	}
+    /**
+     * @dataProvider provideData()
+     */
+    public function testRefactor(string $fixtureFilePath): void
+    {
+        $this->doTestFile($fixtureFilePath);
+    }
 }
