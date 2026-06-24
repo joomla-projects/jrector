@@ -133,6 +133,12 @@ final class RenamedClassHandlerService
 	private function save()
 	{
 		$filePath = $this->directory . '/_classmap.json';
+
+        if (is_file($filePath)) {
+            $old = json_decode(file_get_contents($this->directory . '/_classmap.json'), true);
+            $this->map = array_merge_recursive($old, $this->map);
+        }
+
 		$contents = json_encode($this->map);
 
 		file_put_contents($filePath, $contents);
