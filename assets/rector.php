@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Joomla\Rector\Joomla3\MVC\Config\JoomlaLegacyPrefixToNamespace;
+use Joomla\Rector\Joomla3\MVC\FileRenameCollectorService;
 use Joomla\Rector\Joomla3\MVC\FormFieldsRector;
 use Joomla\Rector\Joomla3\MVC\FormRulesRector;
 use Joomla\Rector\Joomla3\MVC\HelpersToJ4Rector;
@@ -51,10 +52,22 @@ return static function (RectorConfig $rectorConfig): void {
      */
     $rectorConfig->rule(ViewAssignRefToPropertyRector::class);
 
+    // Convert to J4 classes directly
+    $rectorConfig->sets([
+        // Replace legacy class names with the namespaced ones
+        __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_4_0.php',
+    ]);
+
     // MVC refactoring rules
+    // Disable parallel processing so RenamedClassHandlerService and FileRenameCollectorService
+    // are only instantiated once and their __destruct() writes are not overwritten by other workers.
+    $rectorConfig->disableParallel();
+
     $rectorConfig->singleton(RenamedClassHandlerService::class, static function () {
         return new RenamedClassHandlerService(__DIR__);
     });
+
+    $rectorConfig->singleton(FileRenameCollectorService::class);
 
     // Configure the namespace mappings
     $joomlaNamespaceMaps = [
@@ -70,11 +83,6 @@ return static function (RectorConfig $rectorConfig): void {
     /**
      * Refactoring rules for Joomla 4
      */
-    $rectorConfig->sets([
-        // Replace legacy class names with the namespaced ones
-        __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_4_0.php',
-    ]);
-
     $rectorConfig->rule(JimportRector::class);
 
     /**
