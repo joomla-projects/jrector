@@ -1,0 +1,23 @@
+<?php
+
+class HtmlView extends BaseHtmlView
+{
+    public function display($tpl = null)
+    {
+        $items      = $this->get('Items');
+        $model      = $this->getModel();
+        $pagination = $this->get('Pagination');
+    }
+}
+-----
+<?php
+
+class HtmlView extends BaseHtmlView
+{
+    public function display($tpl = null)
+    {
+        $model      = $this->getModel();
+        $items      = $model->getItems();
+        $pagination = $model->getPagination();
+    }
+}
