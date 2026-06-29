@@ -174,8 +174,8 @@ CODE_SAMPLE
     }
 
     /**
-     * Prepend the @var doc comment to the first non-InlineHTML statement unless
-     * a @var $this annotation already exists somewhere in the file.
+     * Insert the @var doc comment after a leading file-header docblock (if present),
+     * otherwise prepend it. Skipped when a @var $this annotation already exists.
      */
     private function addVarAnnotationIfMissing(FileNode $node, string $viewClassName): ?FileNode
     {
@@ -195,10 +195,43 @@ CODE_SAMPLE
 
         $varDoc           = new Doc('/** @var ' . $viewClassName . ' $this */');
         $existingComments = $targetStmt->getAttribute(AttributeKey::COMMENTS, []);
+        $insertAt         = $this->findInsertPosition($existingComments);
 
-        $targetStmt->setAttribute(AttributeKey::COMMENTS, array_merge([$varDoc], $existingComments));
+        array_splice($existingComments, $insertAt, 0, [$varDoc]);
+        $targetStmt->setAttribute(AttributeKey::COMMENTS, $existingComments);
 
         return $node;
+    }
+
+    /**
+     * Returns the index at which the @var comment should be inserted.
+     * Inserts after a leading file-header docblock, otherwise at position 0.
+     *
+     * @param  array<\PhpParser\Comment>  $comments
+     */
+    private function findInsertPosition(array $comments): int
+    {
+        if ($comments === []) {
+            return 0;
+        }
+
+        $first = $comments[0];
+
+        if ($first instanceof Doc && $this->isFileHeaderDocblock($first->getText())) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    /**
+     * A file-header docblock contains at least one of the standard file-level tags.
+     */
+    private function isFileHeaderDocblock(string $text): bool
+    {
+        return str_contains($text, '@package')
+            || str_contains($text, '@copyright')
+            || str_contains($text, '@license');
     }
 
     /**

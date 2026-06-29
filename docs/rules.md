@@ -1094,6 +1094,8 @@ tmpl/
     default.php
 ```
 
+Template without a file-header docblock — annotation is prepended:
+
 ```php
 // Before: tmpl/articles/default.php
 <?php
@@ -1108,6 +1110,39 @@ $items = $this->items;
 defined('_JEXEC') or die;
 $items = $this->items;
 ```
+
+Template with a file-header docblock — annotation is inserted after it:
+
+```php
+// Before: tmpl/articles/default.php
+<?php
+/**
+ * @package     Acme.Example
+ * @subpackage  Site
+ *
+ * @copyright   (C) 2024 Acme, Inc.
+ * @license     GNU General Public License version 2 or later
+ */
+defined('_JEXEC') or die;
+$items = $this->items;
+```
+
+```php
+// After: tmpl/articles/default.php
+<?php
+/**
+ * @package     Acme.Example
+ * @subpackage  Site
+ *
+ * @copyright   (C) 2024 Acme, Inc.
+ * @license     GNU General Public License version 2 or later
+ */
+/** @var \Acme\Component\Example\Site\View\Articles\HtmlView $this */
+defined('_JEXEC') or die;
+$items = $this->items;
+```
+
+A docblock is treated as a file header when it contains at least one of `@package`, `@copyright`, or `@license`.
 
 ### Configuration
 
