@@ -32,10 +32,10 @@ use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
 
 return static function (RectorConfig $rectorConfig): void {
-    // Define the path (or paths) to refactor
+    // Paths to refactor — adjust to match your project structure.
     $rectorConfig->paths([__DIR__ . '/src']);
 
-    // Add additional path to load files for context, in this case a copy of Joomla to understand Joomla core classes
+    // Provide Joomla core classes for type inference (read-only; never written to).
     $rectorConfig->autoloadPaths([
         __DIR__ . '/joomla',
     ]);
@@ -69,13 +69,15 @@ return static function (RectorConfig $rectorConfig): void {
     // are only instantiated once and their __destruct() writes are not overwritten by other workers.
     $rectorConfig->disableParallel();
 
+    // Services required by the Joomla 3 MVC migration rules.
     $rectorConfig->singleton(RenamedClassHandlerService::class, static function () {
         return new RenamedClassHandlerService(__DIR__);
     });
 
     $rectorConfig->singleton(FileRenameCollectorService::class);
 
-    // Configure the namespace mappings
+    // Namespace mapping — adjust the prefix and target namespace to your component.
+    // Add one entry per distinct casing of the legacy prefix (Joomla 3 is case-insensitive).
     $joomlaNamespaceMaps = [
         new JoomlaLegacyPrefixToNamespace('Helloworld', 'Acme\HelloWorld', []),
     ];
@@ -100,16 +102,17 @@ return static function (RectorConfig $rectorConfig): void {
         // Replace classes replaced in Joomla 6.0
         __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_5_0.php',
     ]);
+
+    $rectorConfig->rule(ApplicationInputPropertyRector::class);
     $rectorConfig->rule(CurrentUserInterfaceGetUserRector::class);
     $rectorConfig->rule(GetDboToGetDatabaseRector::class);
     $rectorConfig->rule(HtmlViewGetToModelGetRector::class);
-    $rectorConfig->rule(ViewThisTypehintRector::class);
-    $rectorConfig->rule(ApplicationInputPropertyRector::class);
+    $rectorConfig->rule(LegacyPropertyManagementGetSetRector::class);
     $rectorConfig->rule(PluginPropertyToGetterRector::class);
     $rectorConfig->rule(PluginSubscriberInterfaceRector::class);
     $rectorConfig->rule(TableGetInstanceRector::class);
-    $rectorConfig->rule(LegacyPropertyManagementGetSetRector::class);
     $rectorConfig->rule(ToolbarHelperToDocumentToolbarRector::class);
+    $rectorConfig->rule(ViewThisTypehintRector::class);
 
     /**
      * Refactoring rules for Joomla 6
@@ -118,12 +121,14 @@ return static function (RectorConfig $rectorConfig): void {
         // Replace classes replaced in Joomla 6.0
         __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_6_0.php',
     ]);
-    $rectorConfig->rule(HtmlViewExceptionHandlingRector::class);
+
     $rectorConfig->rule(CmsObjectReturnTypeRector::class);
+    $rectorConfig->rule(HtmlViewExceptionHandlingRector::class);
     $rectorConfig->rule(SetErrorToExceptionRector::class);
 
-
-    // Add use statements at the top of files for everything except short classes like \stdClass
+    // Shorten FQCNs to short names and insert use statements.
+    // CAUTION: classes with the same short name in your code and in the Joomla core
+    // (e.g. HtmlView) will cause fatal conflicts — resolve all ambiguities first.
     $rectorConfig->importNames();
     $rectorConfig->importShortClasses(false);
 

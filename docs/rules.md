@@ -1078,7 +1078,7 @@ Adds a `/** @var FullyQualifiedViewClass $this */` doc comment to Joomla view te
 1. The rule scans every PHP file whose path matches `tmpl/<viewname>/<template>.php`.
 2. It locates the corresponding view class at `src/View/<viewname>/HtmlView.php` relative to the component root (the directory that contains the `tmpl/` folder).
 3. It reads the `namespace` and `class` declarations from that file to build the fully-qualified class name.
-4. It prepends the `@var` annotation to the first PHP statement in the template, unless the annotation is already present.
+4. It inserts the `@var` annotation into the first PHP statement's leading comments, unless the annotation is already present. If that statement already carries a file-header docblock (one containing `@package`, `@copyright`, or `@license`), the annotation is placed after the header; otherwise it is placed before all other comments.
 
 ### Before / After
 
@@ -1141,8 +1141,6 @@ $items = $this->items;
 defined('_JEXEC') or die;
 $items = $this->items;
 ```
-
-A docblock is treated as a file header when it contains at least one of `@package`, `@copyright`, or `@license`.
 
 ### Configuration
 
