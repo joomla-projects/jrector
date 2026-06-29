@@ -8,19 +8,25 @@ use Joomla\Rector\Joomla3\MVC\FormFieldsRector;
 use Joomla\Rector\Joomla3\MVC\FormRulesRector;
 use Joomla\Rector\Joomla3\MVC\HelpersToJ4Rector;
 use Joomla\Rector\Joomla3\MVC\HtmlHelpersRector;
+use Joomla\Rector\Joomla3\MVC\HtmlViewToBaseHtmlViewRector;
 use Joomla\Rector\Joomla3\MVC\LegacyMVCToJ4Rector;
 use Joomla\Rector\Joomla3\MVC\RenamedClassHandlerService;
+use Joomla\Rector\Joomla3\MVC\ViewsTmplMoveRector;
 use Joomla\Rector\Joomla3\ViewAssignRefToPropertyRector;
 use Joomla\Rector\Joomla4\JimportRector;
 use Joomla\Rector\Joomla5\ApplicationInputPropertyRector;
 use Joomla\Rector\Joomla5\CurrentUserInterfaceGetUserRector;
 use Joomla\Rector\Joomla5\GetDboToGetDatabaseRector;
 use Joomla\Rector\Joomla5\HtmlViewGetToModelGetRector;
+use Joomla\Rector\Joomla5\LegacyPropertyManagementGetSetRector;
 use Joomla\Rector\Joomla5\PluginPropertyToGetterRector;
 use Joomla\Rector\Joomla5\PluginSubscriberInterfaceRector;
 use Joomla\Rector\Joomla5\TableGetInstanceRector;
+use Joomla\Rector\Joomla5\ToolbarHelperToDocumentToolbarRector;
 use Joomla\Rector\Joomla5\ViewThisTypehintRector;
+use Joomla\Rector\Joomla6\CmsObjectReturnTypeRector;
 use Joomla\Rector\Joomla6\HtmlViewExceptionHandlingRector;
+use Joomla\Rector\Joomla6\SetErrorToExceptionRector;
 use Rector\Config\RectorConfig;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
@@ -79,6 +85,8 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->ruleWithConfiguration(FormFieldsRector::class, $joomlaNamespaceMaps);
     $rectorConfig->ruleWithConfiguration(FormRulesRector::class, $joomlaNamespaceMaps);
     $rectorConfig->ruleWithConfiguration(LegacyMVCToJ4Rector::class, $joomlaNamespaceMaps);
+    $rectorConfig->rule(ViewsTmplMoveRector::class);
+    $rectorConfig->rule(HtmlViewToBaseHtmlViewRector::class);
 
     /**
      * Refactoring rules for Joomla 4
@@ -100,6 +108,8 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(PluginPropertyToGetterRector::class);
     $rectorConfig->rule(PluginSubscriberInterfaceRector::class);
     $rectorConfig->rule(TableGetInstanceRector::class);
+    $rectorConfig->rule(LegacyPropertyManagementGetSetRector::class);
+    $rectorConfig->rule(ToolbarHelperToDocumentToolbarRector::class);
 
     /**
      * Refactoring rules for Joomla 6
@@ -109,6 +119,8 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/vendor/joomla-projects/typehints/rector/joomla_6_0.php',
     ]);
     $rectorConfig->rule(HtmlViewExceptionHandlingRector::class);
+    $rectorConfig->rule(CmsObjectReturnTypeRector::class);
+    $rectorConfig->rule(SetErrorToExceptionRector::class);
 
 
     // Add use statements at the top of files for everything except short classes like \stdClass

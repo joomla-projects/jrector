@@ -5,6 +5,7 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
 ## Table of Contents
 
 - Joomla 3
+  - [HtmlViewToBaseHtmlViewRector](#htmlviewtobasehtmlviewrector)
   - [ViewAssignRefToPropertyRector](#viewassignreftopropertyrector)
 - Joomla 4
   - [JimportRector](#jimportrector)
@@ -13,12 +14,106 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
   - [CurrentUserInterfaceGetUserRector](#currentuserinterfacegetuserrector)
   - [GetDboToGetDatabaseRector](#getdbotogetdatabaserector)
   - [HtmlViewGetToModelGetRector](#htmlviewgettomodelgetrector)
+  - [LegacyPropertyManagementGetSetRector](#legacypropertymanagementgetsetrector)
   - [PluginPropertyToGetterRector](#pluginpropertytogeterrector)
   - [PluginSubscriberInterfaceRector](#pluginsubscriberinterfacerector)
   - [TableGetInstanceRector](#tablegetinstancerector)
+  - [ToolbarHelperToDocumentToolbarRector](#toolbarhelpertodocumenttoolbarrector)
   - [ViewThisTypehintRector](#viewthistypehintrector)
 - Joomla 6
+  - [CmsObjectReturnTypeRector](#cmsobjectreturntyperector)
   - [HtmlViewExceptionHandlingRector](#htmlviewexceptionhandlingrector)
+  - [SetErrorToExceptionRector](#seterrortoexceptionrector)
+
+---
+
+## HtmlViewToBaseHtmlViewRector
+
+**Class:** `Joomla\Rector\Joomla3\MVC\HtmlViewToBaseHtmlViewRector`
+
+Rewrites the inheritance of `Joomla\CMS\MVC\View\HtmlView` to use an aliased import, which is the Joomla 4+ component coding convention.
+
+The rule handles two forms of the parent-class reference:
+
+- **Short name with an existing `use` statement** — adds `as BaseHtmlView` to the existing import and changes `extends HtmlView` to `extends BaseHtmlView`.
+- **Fully-qualified class name** — adds a new `use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;` statement before the class and changes `extends \Joomla\CMS\MVC\View\HtmlView` to `extends BaseHtmlView`.
+
+Files where the import already carries the `as BaseHtmlView` alias are left untouched.
+
+### Before / After
+
+Short-name form:
+
+```php
+// Before
+use Joomla\CMS\MVC\View\HtmlView;
+
+class DefaultView extends HtmlView
+{
+    public function display($tpl = null): void
+    {
+        parent::display($tpl);
+    }
+}
+```
+
+```php
+// After
+use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+
+class DefaultView extends BaseHtmlView
+{
+    public function display($tpl = null): void
+    {
+        parent::display($tpl);
+    }
+}
+```
+
+Fully-qualified form:
+
+```php
+// Before
+class DefaultView extends \Joomla\CMS\MVC\View\HtmlView
+{
+    public function display($tpl = null): void
+    {
+        parent::display($tpl);
+    }
+}
+```
+
+```php
+// After
+use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;
+
+class DefaultView extends BaseHtmlView
+{
+    public function display($tpl = null): void
+    {
+        parent::display($tpl);
+    }
+}
+```
+
+### What is NOT changed
+
+- Classes that extend a different view class are skipped entirely.
+- Files where the import already uses `as BaseHtmlView` are skipped (idempotent).
+
+### Configuration
+
+The rule requires no configuration parameters.
+
+```php
+// rector.php
+use Joomla\Rector\Joomla3\MVC\HtmlViewToBaseHtmlViewRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(HtmlViewToBaseHtmlViewRector::class);
+};
+```
 
 ---
 
@@ -489,6 +584,97 @@ return static function (RectorConfig $rectorConfig): void {
 
 ---
 
+## LegacyPropertyManagementGetSetRector
+
+**Class:** `Joomla\Rector\Joomla5\LegacyPropertyManagementGetSetRector`
+
+Replaces `$this->get('key', $default)` and `$this->set('key', $value)` calls with direct property access in classes that use `\Joomla\CMS\Object\LegacyPropertyManagementTrait`.
+
+The `LegacyPropertyManagementTrait` provided `get()` / `set()` accessors as a compatibility layer for the old `CMSObject` property API. In modern Joomla code the properties are accessed directly, which is clearer and more performant.
+
+| Before | After |
+|---|---|
+| `$this->get('key', $default)` | `$this->key ?? $default` |
+| `$this->get('key')` | `$this->key ?? null` |
+| `$this->set('key', $value)` | `$this->key = $value` |
+
+The rule applies to any class that uses `LegacyPropertyManagementTrait` directly or inherits it from a parent class. Direct trait usage is detected from the AST; inherited usage is resolved via PHPStan's `ReflectionProvider`, which requires `autoloadPaths()`.
+
+### Before / After
+
+Class with direct trait use:
+
+```php
+// Before
+use Joomla\CMS\Object\LegacyPropertyManagementTrait;
+
+class ExampleView
+{
+    use LegacyPropertyManagementTrait;
+
+    public function display(): void
+    {
+        $title  = $this->get('title', '');
+        $limit  = $this->get('limit', $this->getDefaultLimit());
+        $active = $this->get('active');
+
+        $this->set('active', true);
+        $this->set('title', 'New Title');
+    }
+}
+```
+
+```php
+// After
+use Joomla\CMS\Object\LegacyPropertyManagementTrait;
+
+class ExampleView
+{
+    use LegacyPropertyManagementTrait;
+
+    public function display(): void
+    {
+        $title  = $this->title ?? '';
+        $limit  = $this->limit ?? $this->getDefaultLimit();
+        $active = $this->active ?? null;
+
+        $this->active = true;
+        $this->title = 'New Title';
+    }
+}
+```
+
+The default value for `->get()` is passed through unchanged — variables, method calls, and array literals are all preserved.
+
+### What is NOT changed
+
+- Calls where the first argument is not a string literal (dynamic keys cannot be safely converted to a property access).
+- `$this->set('key')` calls with only one argument are left untouched (no value to assign).
+- Classes that do not use `LegacyPropertyManagementTrait` (directly or via inheritance) are skipped entirely.
+- Only `$this->get()` / `$this->set()` are handled. Calls on other objects (`$model->get(...)`) require type inference and are out of scope.
+
+### Configuration
+
+The rule requires no configuration parameters. `autoloadPaths()` is required when the trait is inherited through parent classes:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\LegacyPropertyManagementGetSetRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(LegacyPropertyManagementGetSetRector::class);
+
+    // Required for detection through inheritance
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/stubs/src',
+        __DIR__ . '/stubs/vendor/joomla',
+    ]);
+};
+```
+
+---
+
 ## PluginPropertyToGetterRector
 
 **Class:** `Joomla\Rector\Joomla5\PluginPropertyToGetterRector`
@@ -760,6 +946,127 @@ return static function (RectorConfig $rectorConfig): void {
 
 ---
 
+## ToolbarHelperToDocumentToolbarRector
+
+**Class:** `Joomla\Rector\Joomla5\ToolbarHelperToDocumentToolbarRector`
+
+Replaces static `ToolbarHelper::<method>()` calls with instance calls on a `$toolbar` variable obtained from `$this->getDocument()->getToolbar()`. This is required in Joomla 5, where the `ToolbarHelper` static API is deprecated in favour of the object-oriented `Toolbar` instance exposed through `DocumentAwareInterface`.
+
+The rule applies to any class that implements `\Joomla\CMS\Document\DocumentAwareInterface`, either directly or through a parent class. Direct implementation is detected via the AST; indirect implementation is resolved via PHPStan's `ReflectionProvider`, which requires `autoloadPaths()`.
+
+For each qualifying method:
+
+1. `$toolbar = $this->getDocument()->getToolbar()` is inserted once, immediately before the first `ToolbarHelper` call in the method body.
+2. All `ToolbarHelper::<method>(args...)` calls are replaced with `$toolbar-><method>(args...)`.
+3. If `$toolbar` is already assigned in the method, step 1 is skipped (no duplicate assignment).
+
+`ToolbarHelper::title()` is excluded from the replacement — it does not have a direct instance equivalent.
+
+Both the short name (`ToolbarHelper`) and the fully-qualified name (`\Joomla\CMS\Toolbar\ToolbarHelper`) are recognised.
+
+### Before / After
+
+Basic replacement:
+
+```php
+// Before
+use Joomla\CMS\Document\DocumentAwareInterface;
+
+class ExampleView implements DocumentAwareInterface
+{
+    public function addToolbar(): void
+    {
+        ToolbarHelper::addNew('article.add');
+        ToolbarHelper::editList('article.edit');
+        ToolbarHelper::deleteList('', 'article.delete');
+    }
+}
+```
+
+```php
+// After
+use Joomla\CMS\Document\DocumentAwareInterface;
+
+class ExampleView implements DocumentAwareInterface
+{
+    public function addToolbar(): void
+    {
+        $toolbar = $this->getDocument()->getToolbar();
+        $toolbar->addNew('article.add');
+        $toolbar->editList('article.edit');
+        $toolbar->deleteList('', 'article.delete');
+    }
+}
+```
+
+`ToolbarHelper::title()` is left in place; the `$toolbar` assignment is inserted only before the first non-title call:
+
+```php
+// Before
+public function addToolbar(): void
+{
+    ToolbarHelper::title('Articles', 'article');
+    ToolbarHelper::addNew('article.add');
+}
+```
+
+```php
+// After
+public function addToolbar(): void
+{
+    ToolbarHelper::title('Articles', 'article');
+    $toolbar = $this->getDocument()->getToolbar();
+    $toolbar->addNew('article.add');
+}
+```
+
+When `$toolbar` is already assigned in the method, only the calls are replaced:
+
+```php
+// Before
+public function addToolbar(): void
+{
+    $toolbar = $this->getDocument()->getToolbar();
+    ToolbarHelper::addNew('article.add');
+}
+```
+
+```php
+// After
+public function addToolbar(): void
+{
+    $toolbar = $this->getDocument()->getToolbar();
+    $toolbar->addNew('article.add');
+}
+```
+
+### What is NOT changed
+
+- `ToolbarHelper::title()` — excluded from the replacement.
+- Classes that do not implement `DocumentAwareInterface` (directly or indirectly) are skipped entirely.
+
+### Configuration
+
+The rule requires no configuration parameters. `autoloadPaths()` is required to detect `DocumentAwareInterface` implementation through parent classes:
+
+```php
+// rector.php
+use Joomla\Rector\Joomla5\ToolbarHelperToDocumentToolbarRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(ToolbarHelperToDocumentToolbarRector::class);
+
+    // Required for detection through inheritance
+    $rectorConfig->autoloadPaths([
+        __DIR__ . '/stubs/src',
+        __DIR__ . '/stubs/vendor/joomla',
+    ]);
+};
+```
+
+---
+
 ## ViewThisTypehintRector
 
 **Class:** `Joomla\Rector\Joomla5\ViewThisTypehintRector`
@@ -813,6 +1120,143 @@ use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(ViewThisTypehintRector::class);
+};
+```
+
+---
+
+## CmsObjectReturnTypeRector
+
+**Class:** `Joomla\Rector\Joomla6\CmsObjectReturnTypeRector`
+
+Replaces `CMSObject` with `stdClass` in return type declarations, `@return` PHPDoc tags, property type declarations, and `@var` PHPDoc tags. The `Joomla\CMS\Object\CMSObject` class was removed in Joomla 6; all occurrences in type positions must be updated to the plain `stdClass` equivalent.
+
+Both the short name (`CMSObject`) and the fully-qualified name (`\Joomla\CMS\Object\CMSObject` / `Joomla\CMS\Object\CMSObject`) are recognised. All native type forms are handled: simple, nullable (`?CMSObject`), union (`CMSObject|false`), and intersection types.
+
+### Before / After
+
+Simple return typehint and matching `@return` tag:
+
+```php
+// Before
+class ExampleModel
+{
+    /**
+     * @return CMSObject
+     */
+    public function getItem(): CMSObject
+    {
+        return new CMSObject();
+    }
+}
+```
+
+```php
+// After
+class ExampleModel
+{
+    /**
+     * @return stdClass
+     */
+    public function getItem(): stdClass
+    {
+        return new CMSObject();
+    }
+}
+```
+
+Nullable and union typehints:
+
+```php
+// Before
+public function findItem(): ?CMSObject { ... }
+public function getResult(): CMSObject|false { ... }
+```
+
+```php
+// After
+public function findItem(): ?stdClass { ... }
+public function getResult(): stdClass|false { ... }
+```
+
+Fully-qualified names in both typehints and PHPDoc:
+
+```php
+// Before
+/**
+ * @return \Joomla\CMS\Object\CMSObject
+ */
+public function getItem(): \Joomla\CMS\Object\CMSObject { ... }
+```
+
+```php
+// After
+/**
+ * @return stdClass
+ */
+public function getItem(): stdClass { ... }
+```
+
+Property type hints and `@var` tags:
+
+```php
+// Before
+class ExampleModel
+{
+    /**
+     * @var CMSObject
+     */
+    public CMSObject $item;
+
+    public ?CMSObject $related = null;
+}
+```
+
+```php
+// After
+class ExampleModel
+{
+    /**
+     * @var stdClass
+     */
+    public stdClass $item;
+
+    public ?stdClass $related = null;
+}
+```
+
+Standalone functions are also covered:
+
+```php
+// Before
+/** @return CMSObject */
+function getGlobalItem(): CMSObject { ... }
+```
+
+```php
+// After
+/** @return stdClass */
+function getGlobalItem(): stdClass { ... }
+```
+
+### What is NOT changed
+
+- `@param` PHPDoc tags — only `@return` and `@var` lines are touched.
+- Parameter type hints — only return types and property types are replaced.
+- `new CMSObject()` instantiation expressions — those are out of scope for this rule.
+- Classes that extend or implement `CMSObject` — inheritance hierarchy changes are a separate concern.
+
+### Configuration
+
+The rule requires no configuration parameters.
+
+```php
+// rector.php
+use Joomla\Rector\Joomla6\CmsObjectReturnTypeRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(CmsObjectReturnTypeRector::class);
 };
 ```
 
@@ -915,5 +1359,123 @@ return static function (RectorConfig $rectorConfig): void {
         __DIR__ . '/stubs/src',
         __DIR__ . '/stubs/vendor/joomla',
     ]);
+};
+```
+
+---
+
+## SetErrorToExceptionRector
+
+**Class:** `Joomla\Rector\Joomla6\SetErrorToExceptionRector`
+
+Replaces legacy `$this->setError()` / `return false` error-handling pairs with a thrown `\Exception`. In Joomla 3 and 4, models and controllers often signalled failure by storing an error message via `$this->setError('...')` and returning `false`. Joomla 6 promotes exception-based error propagation.
+
+The rule matches consecutive statement pairs of the form:
+
+```
+$this->setError(<expr>);
+return false;
+```
+
+and replaces them with:
+
+```
+throw new \Exception(<expr>);
+```
+
+The transformation recurses into nested blocks: `if`, `else`, `elseif`, `foreach`, `for`, `while`, and `try/catch` bodies are all processed.
+
+### Before / After
+
+Simple method body:
+
+```php
+// Before
+class ExampleModel
+{
+    public function save(array $data): bool
+    {
+        if (!$this->validate($data)) {
+            $this->setError('Validation failed');
+            return false;
+        }
+
+        return true;
+    }
+}
+```
+
+```php
+// After
+class ExampleModel
+{
+    public function save(array $data): bool
+    {
+        if (!$this->validate($data)) {
+            throw new \Exception('Validation failed');
+        }
+
+        return true;
+    }
+}
+```
+
+Nested blocks and multiple occurrences:
+
+```php
+// Before
+public function process(): bool
+{
+    foreach ($this->items as $item) {
+        if (!$item->isValid()) {
+            $this->setError('Invalid item');
+            return false;
+        }
+    }
+
+    if (!$this->store()) {
+        $this->setError('Store failed');
+        return false;
+    }
+
+    return true;
+}
+```
+
+```php
+// After
+public function process(): bool
+{
+    foreach ($this->items as $item) {
+        if (!$item->isValid()) {
+            throw new \Exception('Invalid item');
+        }
+    }
+
+    if (!$this->store()) {
+        throw new \Exception('Store failed');
+    }
+
+    return true;
+}
+```
+
+### What is NOT changed
+
+- `$this->setError(...)` calls that are **not** immediately followed by `return false` are left untouched.
+- `return false` statements that are **not** immediately preceded by `$this->setError(...)` are left untouched.
+- The message argument is passed through unchanged — variable expressions, concatenations, and translation calls are all preserved.
+
+### Configuration
+
+The rule requires no configuration parameters.
+
+```php
+// rector.php
+use Joomla\Rector\Joomla6\SetErrorToExceptionRector;
+use Rector\Config\RectorConfig;
+
+return static function (RectorConfig $rectorConfig): void {
+    $rectorConfig->rule(SetErrorToExceptionRector::class);
 };
 ```
