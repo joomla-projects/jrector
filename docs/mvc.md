@@ -1,14 +1,14 @@
 # Converting a Joomla 3 component to Joomla 4+ namespaces
 
-In the last few minor versions of Joomla 3, the project started switching to namespaced code and a PSR-4-compliant, auto-loadable extension structure. With Joomla 4, this is the preferred structure, and this part of the Rector rules provides a way to transform your existing component into it automatically.
+In the last few minor versions of Joomla 3, the project began transitioning to namespaced code and a PSR-4-compliant, auto-loadable extension structure. With Joomla 4, this is the preferred structure, and this part of the Rector rules provides a way to transform your existing component into it automatically.
 
-This work is heavily based on the excellent [Component Upgrader](https://github.com/nikosdion/joomla_com_upgrader) by [Nicholas K. Dionysopoulos](https://www.akeeba.com/). Thank you for both the code and the inspiration to extend it further.
+This work is heavily based on the excellent [Component Upgrader](https://github.com/nikosdion/joomla_com_upgrader) by [Nicholas K. Dionysopoulos](https://www.akeeba.com/). Many thanks for both the code and the inspiration to extend it further.
 
 ## Requirements
 
-It is assumed that you are already using `git`, have a PHP development environment ready, and have installed both Rector and this library as described [here](index.md).
+This guide assumes that you are already using `Git`, have a PHP development environment ready, and have installed both Rector and this library as described [here](index.md).
 
-We strongly recommend keeping your component's code in a subfolder of your repository. Inside that folder, your component project must have the structure described below.
+We strongly recommend keeping your component's code in a subfolder of your repository. Within that folder, your component should follow the structure described below.
 
 - Your component's backend code must be in a folder named `administrator`, `admin`, `backend`, or `administrator/components/com_yourcomponent` (where `com_yourcomponent` is the name of your component).
 - Your component's frontend code must be in a folder named `site`, `frontend`, or `components/com_yourcomponent`.
@@ -23,7 +23,7 @@ We strongly recommend keeping your component's code in a subfolder of your repos
 - Refactor and namespace HTML helper classes (e.g. `JHtmlExample`) into HTML services.
 - Refactor and namespace custom form field classes (e.g. `JFormFieldExample`, `JFormFieldModal_Example`).
 - Refactor and namespace custom form rule classes (e.g. `JFormRuleExample`).
-- Update static type hints in PHP code and docblocks.
+- Update PHP type hints and PHPDoc blocks.
 
 **What it cannot and will not do**
 
@@ -63,7 +63,7 @@ $rectorConfig->rule(ViewsTmplMoveRector::class);
 $rectorConfig->rule(HtmlViewToBaseHtmlViewRector::class);
 ```
 
-The whole process happens in two steps: first Rector refactors the code, then a generated script moves the files to their new locations. This is why parallel execution must be disabled:
+The conversion happens in two steps: first Rector refactors the code, then a generated script moves the files to their new locations. This is why parallel execution must be disabled:
 
 ```php
 // Disable parallel processing so RenamedClassHandlerService and FileRenameCollectorService
@@ -93,7 +93,7 @@ $joomlaNamespaceMaps = [
 
 The second argument is your new namespace prefix. The convention `CompanyName\ComponentNameWithoutCom` or `CompanyName\Component\ComponentNameWithoutCom` is recommended.
 
-**Note:** Two lines are used here — one with `Helloworld` and one with `HelloWorld`. In Joomla 3 the casing of a component prefix does not matter, but the Rector rules are case-sensitive. Add one entry for every distinct casing that appears in your component's class names.
+**Note:** Two lines are used here — one with `Helloworld` and one with `HelloWorld`. In Joomla 3, the capitalisation of a component prefix does not matter, but the Rector rules are case-sensitive. Add one entry for every distinct casing that appears in your component's class names.
 
 The third argument (the empty array `[]`) is an optional list of class names — beginning with the old prefix — that should not be namespaced.
 
@@ -109,7 +109,7 @@ $rectorConfig->rule(ViewsTmplMoveRector::class);
 $rectorConfig->rule(HtmlViewToBaseHtmlViewRector::class);
 ```
 
-- `HelpersToJ4Rector`, `HtmlHelpersRector`, `FormFieldsRector`, `FormRulesRector` — convert the respective legacy class type into its namespaced Joomla 4 variant.
+- `HelpersToJ4Rector`, `HtmlHelpersRector`, `FormFieldsRector`, `FormRulesRector` — convert the corresponding legacy classes into their Joomla 4 namespaced equivalents.
 - `LegacyMVCToJ4Rector` — converts models, views, controllers, and tables into their namespaced variants and updates all references across the codebase.
 - `ViewsTmplMoveRector` — registers all view layout files so they will be moved from `views/<view>/tmpl/` to `tmpl/<view>/` by the generated rename script.
 - `HtmlViewToBaseHtmlViewRector` — adds the `BaseHtmlView` alias for `Joomla\CMS\MVC\View\HtmlView` in view classes and updates the `extends` clause accordingly. This prevents the `class HtmlView extends HtmlView` collision that would otherwise occur when shortening class names later.
@@ -124,7 +124,7 @@ vendor/bin/rector --dry-run --clear-cache
 
 If you are happy with the results, run it without `--dry-run`.
 
-Review all changes and commit them to your git repository before going further. At this point the file contents have been modified but the files are still in their original locations. Committing now ensures that git tracks the connection between old and new files. If you change the file contents and move them in the same commit, git may not recognise that the moved file is the same as the old one, and you will lose the file history.
+Review all changes and commit them to your Git repository before going further. At this point the file contents have been modified but the files are still in their original locations. Committing now helps Git recognise the relationship between the old and new files. If you change the file contents and move them in the same commit, Git may not recognise that the moved file is the same as the old one, and you will lose the file history.
 
 The first pass also generates a `src/rename.php` file. Run it from your project root:
 
@@ -132,6 +132,6 @@ The first pass also generates a `src/rename.php` file. Run it from your project 
 php src/rename.php
 ```
 
-This script moves all files to their new locations. Commit these changes as well.
+This script moves the renamed files into their new locations. Review the moved files to ensure they have been placed in the expected locations. Commit these changes as well.
 
-Congratulations — you have now converted the majority of your component to the new Joomla 4 structure. Unless other rules depend on the MVC rules, remove them from `rector.php` before continuing with further refactoring steps.
+Congratulations — you have now converted the majority of your component to the new Joomla 4 structure. Unless you still need these MVC rules for subsequent refactoring steps, remove them from `rector.php` before continuing with the remaining rules.
