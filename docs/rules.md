@@ -1,6 +1,6 @@
 # Joomla Rector Rules
 
-Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions from old Joomla versions up to the Joomla 7.
+Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions from old Joomla versions up to Joomla 7.
 
 ## Table of Contents
 
@@ -33,7 +33,7 @@ Custom [Rector](https://getrector.com/) rules for upgrading Joomla extensions fr
 
 Rewrites the inheritance of `Joomla\CMS\MVC\View\HtmlView` to use an aliased import, which is the Joomla 4+ component coding convention.
 
-The rule handles two forms of the parent-class reference:
+The rule handles two forms of parent-class reference:
 
 - **Short name with an existing `use` statement** — adds `as BaseHtmlView` to the existing import and changes `extends HtmlView` to `extends BaseHtmlView`.
 - **Fully-qualified class name** — adds a new `use Joomla\CMS\MVC\View\HtmlView as BaseHtmlView;` statement before the class and changes `extends \Joomla\CMS\MVC\View\HtmlView` to `extends BaseHtmlView`.
@@ -103,7 +103,7 @@ class DefaultView extends BaseHtmlView
 
 ### Configuration
 
-The rule requires no configuration parameters.
+The rule requires no configuration.
 
 ```php
 // rector.php
@@ -130,7 +130,7 @@ The rule applies to any class that directly or indirectly extends one of:
 - `JViewLegacy`
 - `JView`
 
-Direct extension is detected via the AST (no reflection needed). For classes that extend a custom intermediate view class, PHPStan's `ReflectionProvider` walks the full inheritance chain, which requires `autoloadPaths()`.
+Direct extension is detected via the AST (no reflection is required). For classes that extend a custom intermediate view class, PHPStan's `ReflectionProvider` walks the full inheritance chain, which requires `autoloadPaths()`.
 
 ### Before / After
 
@@ -204,7 +204,7 @@ Replaces `$var->input` with `$var->getInput()` inside method and function bodies
 - `\Joomla\CMS\Factory::getApplication()`
 - `$this->getApplication()`
 
-Variable tracking is scoped per method or function body, so the variable name (`$app`, `$application`, etc.) can be anything.
+Variable tracking is scoped to each method or function body, so the variable name (`$app`, `$application`, etc.) can be anything.
 
 In Joomla 4 and earlier the `$input` property was publicly accessible on application objects. Joomla 5 formalises access through the `getInput()` method. Direct property access still works due to backward compatibility, but using the method is the current best practice and required for forward compatibility.
 
@@ -278,7 +278,7 @@ class MyPlugin extends CMSPlugin
 }
 ```
 
-Chained access is handled correctly — `$app->input->get(...)` becomes `$app->getInput()->get(...)`.
+Chained access is handled correctly: `$app->input->get(...)` becomes `$app->getInput()->get(...)`.
 
 ### What is NOT changed
 
@@ -334,7 +334,7 @@ class ExampleController implements \Joomla\CMS\User\CurrentUserInterface
 }
 ```
 
-Both `Factory::getUser()` and `JFactory::getUser()` (including the FQN `\Joomla\CMS\Factory::getUser()`) are replaced. Calls with arguments are left untouched.
+Both `Factory::getUser()` and `JFactory::getUser()` (including the FQN `\Joomla\CMS\Factory::getUser()`) are replaced. Calls with arguments are not modified.
 
 Inherited implementation is also detected when the Joomla sources are available:
 
@@ -495,7 +495,7 @@ return static function (RectorConfig $rectorConfig): void {
 
 **Class:** `Joomla\Rector\Joomla5\HtmlViewGetToModelGetRector`
 
-Replaces `$this->get('Foo')` calls inside Joomla `HtmlView` classes with the equivalent direct model getter `$model->getFoo()`. If the method does not already have a `$model` variable, the rule prepends `$model = $this->getModel()` once at the top of the method.
+Replaces `$this->get('Foo')` calls inside Joomla `HtmlView` classes with the equivalent direct model getter `$model->getFoo()`. If the method does not already define a `$model` variable, the rule prepends `$model = $this->getModel()` once at the top of the method.
 
 When the class follows the Joomla 4 MVC namespace convention (`...\View\<Name>\HtmlView`), the rule additionally adds a `/** @var \...\Model\<Name>Model $model */` typehint comment above the `$model = $this->getModel()` line. The model FQN is derived automatically by replacing `\View\` with `\Model\`, removing the `\HtmlView` class name, and appending `Model`.
 
@@ -811,7 +811,7 @@ class PlgContentExample extends CMSPlugin implements \Joomla\Event\SubscriberInt
 
 ### Manual follow-up
 
-The generated `getSubscribedEvents()` uses each method name as both the event key and the handler. Review the generated entries:
+The generated `getSubscribedEvents()`method uses each method name as both the event key and the handler. Review the generated entries carefully:
 - Rename keys to the actual Joomla event names if the method names differ (e.g. `onContentAfterSave` → `ContentAfterSave` in some Joomla 5 event dispatcher configurations).
 - Remove entries for helper methods that are public but not event handlers.
 
@@ -844,7 +844,7 @@ Replaces `Table::getInstance($type)` static calls with direct class instantiatio
 The replacement class FQN is resolved as follows:
 
 1. If `component_namespace` is configured and the component-specific table class `<component_namespace>\Administrator\Table\<Type>Table` can be found (via PHPStan's `ReflectionProvider` — requires `autoloadPaths()`), that class is used.
-2. Otherwise the rule falls back to the core namespace `\Joomla\CMS\Table\<Type>`.
+2. Otherwise, the rule falls back to the core namespace `\Joomla\CMS\Table\<Type>`.
 
 Only assignment expressions of the form `$var = Table::getInstance('Type')` are handled. Non-assignment contexts (return statements, conditions, chained calls) are left untouched. If the optional second argument (the legacy class prefix) is present, it must be `'JTable'` — any other prefix cannot be reliably resolved and is therefore skipped.
 
@@ -952,13 +952,13 @@ return static function (RectorConfig $rectorConfig): void {
 
 Replaces static `ToolbarHelper::<method>()` calls with instance calls on a `$toolbar` variable obtained from `$this->getDocument()->getToolbar()`. This is required in Joomla 5, where the `ToolbarHelper` static API is deprecated in favour of the object-oriented `Toolbar` instance exposed through `DocumentAwareInterface`.
 
-The rule applies to any class that implements `\Joomla\CMS\Document\DocumentAwareInterface`, either directly or through a parent class. Direct implementation is detected via the AST; indirect implementation is resolved via PHPStan's `ReflectionProvider`, which requires `autoloadPaths()`.
+The rule applies to any class that implements `\Joomla\CMS\Document\DocumentAwareInterface`, either directly or via a parent class. Direct implementation is detected via the AST; indirect implementation is resolved via PHPStan's `ReflectionProvider`, which requires `autoloadPaths()`.
 
 For each qualifying method:
 
 1. `$toolbar = $this->getDocument()->getToolbar()` is inserted once, immediately before the first `ToolbarHelper` call in the method body.
 2. All `ToolbarHelper::<method>(args...)` calls are replaced with `$toolbar-><method>(args...)`.
-3. If `$toolbar` is already assigned in the method, step 1 is skipped (no duplicate assignment).
+3. If `$toolbar` is already assigned in the method, step 1 is skipped to avoid duplicate assignment.
 
 `ToolbarHelper::title()` is excluded from the replacement — it does not have a direct instance equivalent.
 
