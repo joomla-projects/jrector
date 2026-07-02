@@ -78,7 +78,7 @@ class ExampleHtmlView extends HtmlView
     public function display($tpl = null)
     {
         $model = $this->getModel();
-        $model->setUseException(true);
+        $model->setUseExceptions(true);
 
         $items = $model->getItems();
     }
@@ -140,7 +140,7 @@ CODE_SAMPLE
 
         $hasChanged = false;
 
-        $newStmts = $this->ensureSetUseException($classMethod->stmts);
+        $newStmts = $this->ensureSetUseExceptions($classMethod->stmts);
 
         if ($newStmts !== null) {
             $classMethod->stmts = $newStmts;
@@ -164,7 +164,7 @@ CODE_SAMPLE
      * @param  Node[]  $stmts
      * @return Node[]|null  Modified list, or null when nothing changed.
      */
-    private function ensureSetUseException(array $stmts): ?array
+    private function ensureSetUseExceptions(array $stmts): ?array
     {
         $hasChanged = false;
         $result     = [];
@@ -180,14 +180,14 @@ CODE_SAMPLE
             // Skip if the very next statement is already setUseException(true)
             $nextStmt = $stmts[$index + 1] ?? null;
 
-            if ($nextStmt !== null && $this->isSetUseException($nextStmt, $modelVarName)) {
+            if ($nextStmt !== null && $this->isSetUseExceptions($nextStmt, $modelVarName)) {
                 continue;
             }
 
             $result[] = new Expression(
                 new MethodCall(
                     new Variable($modelVarName),
-                    'setUseException',
+                    'setUseExceptions',
                     [new Arg(new ConstFetch(new Name('true')))]
                 )
             );
@@ -258,7 +258,7 @@ CODE_SAMPLE
     /**
      * Matches: $<modelVarName>->setUseException(true)
      */
-    private function isSetUseException(Node $stmt, string $modelVarName): bool
+    private function isSetUseExceptions(Node $stmt, string $modelVarName): bool
     {
         if (!$stmt instanceof Expression || !$stmt->expr instanceof MethodCall) {
             return false;
@@ -270,7 +270,7 @@ CODE_SAMPLE
             return false;
         }
 
-        if (!$call->name instanceof Identifier || $call->name->name !== 'setUseException') {
+        if (!$call->name instanceof Identifier || $call->name->name !== 'setUseExceptions') {
             return false;
         }
 

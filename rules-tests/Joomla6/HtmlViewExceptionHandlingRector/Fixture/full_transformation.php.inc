@@ -23,7 +23,7 @@ class ExampleHtmlView extends \Joomla\CMS\MVC\View\HtmlView
     {
         $model = $this->getModel();
 
-        $model->setUseException(true);
+        $model->setUseExceptions(true);
 
         $items = $model->getItems();
     }
