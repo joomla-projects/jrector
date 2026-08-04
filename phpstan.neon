@@ -3,8 +3,10 @@ includes:
 parameters:
   level: 0
   paths:
+    - config
     - rules
     - rules-tests
+    - tools
   scanDirectories:
     - joomla
   ignoreErrors:
