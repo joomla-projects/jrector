@@ -123,6 +123,8 @@ The easiest approach is to run only one rule at a time. Comment out everything y
 
 The important point: Rector is not a fire-and-forget solution. Even with good rules, mistakes can happen. You must review every change the tool makes. That becomes very difficult when 30 rules each make major changes to your codebase at the same time. Follow the principle "run one rule, review the results, commit" — only then move on to the next rule.
 
+This repository also ships ready-made [rule sets](rules.md#rule-sets) that register all rules of a Joomla version at once. Reach for them only after the migration is done, to keep an already clean code base from drifting back — running a whole set during the first migration produces exactly the unreviewable diff this section warns about.
+
 ## Joomla-specific Rector rules
 
 To run all rules in this repository (remember: one by one, not all at once!), copy `assets/rector.php` to your project as a base configuration. That file contains all rules sorted by Joomla version, which is visible in the namespaces. For an extension that targets Joomla 5, run all rules in the `Joomla3`, `Joomla4`, and `Joomla5` namespaces. The resulting code will run on the latest minor version of that major version.
