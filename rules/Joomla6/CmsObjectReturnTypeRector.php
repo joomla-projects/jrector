@@ -49,7 +49,7 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
 final class CmsObjectReturnTypeRector extends AbstractRector
 {
     private const CMSOBJ_SHORT = 'CMSObject';
-    private const CMSOBJ_FQN  = 'Joomla\CMS\Object\CMSObject';
+    private const CMSOBJ_FQN   = 'Joomla\CMS\Object\CMSObject';
 
     public function getNodeTypes(): array
     {

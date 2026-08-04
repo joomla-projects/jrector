@@ -101,14 +101,14 @@ CODE_SAMPLE
                 new UseItem(
                     new Name(self::HTML_VIEW_FQN),
                     new Identifier('BaseHtmlView')
-                )
+                ),
             ]);
 
             $insertIndex = $this->findUseInsertionIndex($node->stmts);
             $node->stmts = array_merge(
-                array_slice($node->stmts, 0, $insertIndex),
+                \array_slice($node->stmts, 0, $insertIndex),
                 [$newUse],
-                array_slice($node->stmts, $insertIndex)
+                \array_slice($node->stmts, $insertIndex)
             );
         }
 
