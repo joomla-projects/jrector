@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Joomla release used to give PHPStan the core classes the rules refer to.
+  # The joomla/ directory is gitignored, so CI has to provide it.
+  JOOMLA_VERSION: '6.1.2'
+
+jobs:
+  tests:
+    name: PHPUnit (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.3', '8.4']
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      # composer update, not composer install: composer.lock pins PHPUnit 11, which requires
+      # PHP 8.2 or newer. Updating lets PHP 8.1 resolve PHPUnit 10 instead, so the whole
+      # supported range of composer.json is actually tested.
+      - name: Install dependencies
+        run: composer update --no-progress --prefer-dist --no-interaction
+
+      - name: Run the test suite
+        run: vendor/bin/phpunit
+
+  static-analysis:
+    name: PHPStan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --no-interaction
+
+      - name: Cache the Joomla source
+        id: joomla-cache
+        uses: actions/cache@v4
+        with:
+          path: joomla
+          key: joomla-${{ env.JOOMLA_VERSION }}
+
+      - name: Download the Joomla source
+        if: steps.joomla-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p joomla
+          curl -fsSL -o joomla.tar.gz \
+            "https://github.com/joomla/joomla-cms/releases/download/${JOOMLA_VERSION}/Joomla_${JOOMLA_VERSION}-Stable-Full_Package.tar.gz"
+          tar -xzf joomla.tar.gz -C joomla
+          rm joomla.tar.gz
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress
+
+  coding-standards:
+    name: PHP-CS-Fixer
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-progress --prefer-dist --no-interaction
+
+      - name: Check the coding standards
+        run: vendor/bin/php-cs-fixer fix --dry-run --diff
+
+  rule-consistency:
+    name: Rule consistency
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the code
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      # Needs no dependencies: the script only reads the repository's own files.
+      - name: Check that every rule is documented and configured
+        run: php tools/check-rule-consistency.php
