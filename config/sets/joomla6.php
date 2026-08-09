@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 use Joomla\Rector\Joomla6\CmsObjectReturnTypeRector;
 use Joomla\Rector\Joomla6\HtmlViewExceptionHandlingRector;
+use Joomla\Rector\Joomla6\JpathPlatformToJexecRector;
 use Joomla\Rector\Joomla6\SetErrorToExceptionRector;
 use Joomla\Rector\Set\JoomlaSetList;
 use Rector\Config\RectorConfig;
@@ -35,4 +36,6 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(HtmlViewExceptionHandlingRector::class);
     // Replaces $this->setError('msg') followed by return false with throw new \Exception('msg').
     $rectorConfig->rule(SetErrorToExceptionRector::class);
+    // Replaces the JPATH_PLATFORM direct access guard with _JEXEC.
+    $rectorConfig->rule(JpathPlatformToJexecRector::class);
 };
