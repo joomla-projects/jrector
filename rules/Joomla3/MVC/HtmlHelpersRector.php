@@ -11,6 +11,7 @@ declare (strict_types=1);
 
 namespace Joomla\Rector\Joomla3\MVC;
 
+use PhpParser\Modifiers;
 use PhpParser\Node;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\StaticCall;
@@ -219,7 +220,7 @@ CODE_SAMPLE
             return null;
         }
 
-        $node->flags = $node->flags & ~Class_::MODIFIER_ABSTRACT;
+        $node->flags = $node->flags & ~Modifiers::ABSTRACT;
 
         return $node;
     }
@@ -241,7 +242,7 @@ CODE_SAMPLE
 
         $dirty = false;
 
-        if (($classMethod->flags & Class_::VISIBILITY_MODIFIER_MASK) === 0) {
+        if (($classMethod->flags & Modifiers::VISIBILITY_MASK) === 0) {
             $this->visibilityManipulator->makePublic($classMethod);
 
             $dirty = true;
