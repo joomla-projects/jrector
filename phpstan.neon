@@ -9,5 +9,7 @@ parameters:
     - tools
   scanDirectories:
     - joomla
+  excludePaths:
+    - rules-tests/*/Fixture/*
   ignoreErrors:
   reportUnmatchedIgnoredErrors: false
