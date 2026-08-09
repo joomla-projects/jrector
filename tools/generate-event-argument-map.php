@@ -57,7 +57,13 @@ use PhpParser\Node\Stmt\Use_;
 use PhpParser\NodeFinder;
 use PhpParser\ParserFactory;
 
-$joomlaRoot = $argv[1] ?? __DIR__ . '/../joomla';
+// Positional arguments only; flags such as --write are handled separately.
+$positional = array_values(array_filter(
+    \array_slice($argv, 1),
+    static fn (string $argument): bool => !str_starts_with($argument, '-')
+));
+
+$joomlaRoot = $positional[0] ?? __DIR__ . '/../joomla';
 $eventDir   = rtrim($joomlaRoot, '/\\') . '/libraries/src/Event';
 
 if (!is_dir($eventDir)) {
@@ -130,12 +136,39 @@ foreach ($files as $file) {
         $fqcn = $namespace === '' ? $class->name->toString() : $namespace . '\\' . $class->name->toString();
 
         $classes[$fqcn] = [
-            'parent'   => $class->extends === null ? null : $resolve($class->extends->toString()),
-            'order'    => extractLegacyArgumentsOrder($class),
-            'getters'  => extractGetters($class, $nodeFinder),
-            'abstract' => $class->isAbstract(),
+            'parent'      => $class->extends === null ? null : $resolve($class->extends->toString()),
+            'order'       => extractLegacyArgumentsOrder($class),
+            'getters'     => extractGetters($class, $nodeFinder),
+            'abstract'    => $class->isAbstract(),
+            'resultAware' => isResultAware($class, $nodeFinder),
         ];
     }
+}
+
+/**
+ * Tells whether the class carries the event result API, i.e. whether `addResult()` exists.
+ *
+ * Only events implementing ResultAwareInterface (in practice via the ResultAware trait) have it,
+ * so a handler for any other event must not be rewritten to addResult().
+ */
+function isResultAware(Class_ $class, NodeFinder $nodeFinder): bool
+{
+    foreach ($class->implements as $interface) {
+        if ($interface->getLast() === 'ResultAwareInterface') {
+            return true;
+        }
+    }
+
+    foreach ($nodeFinder->findInstanceOf($class->stmts, Node\Stmt\TraitUse::class) as $traitUse) {
+        /** @var Node\Stmt\TraitUse $traitUse */
+        foreach ($traitUse->traits as $trait) {
+            if ($trait->getLast() === 'ResultAware') {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -294,6 +327,100 @@ function resolveOrder(string $fqcn, array $classes): array
 }
 
 /**
+ * True when the class or any of its ancestors carries the result API.
+ *
+ * @param array<string, array{parent: ?string, order: ?string[], getters: array<string, string>, abstract: bool, resultAware: bool}> $classes
+ */
+function resolveResultAware(string $fqcn, array $classes): bool
+{
+    $seen = [];
+
+    while (isset($classes[$fqcn]) && !isset($seen[$fqcn])) {
+        $seen[$fqcn] = true;
+
+        if ($classes[$fqcn]['resultAware']) {
+            return true;
+        }
+
+        $fqcn = (string) $classes[$fqcn]['parent'];
+    }
+
+    return false;
+}
+
+/**
+ * Reads the `$eventNameToConcreteClass` map from CoreEventAware, i.e. the mapping every
+ * `AbstractEvent::create()` call uses to turn an event name into a concrete event class.
+ *
+ * @return array<string, string>
+ */
+function extractEventNameMap(string $eventDir, \PhpParser\Parser $parser, NodeFinder $nodeFinder): array
+{
+    $file = $eventDir . '/CoreEventAware.php';
+
+    if (!is_file($file)) {
+        fwrite(\STDERR, "CoreEventAware.php not found, event name map will be empty.\n");
+
+        return [];
+    }
+
+    $stmts = $parser->parse((string) file_get_contents($file));
+
+    if ($stmts === null) {
+        return [];
+    }
+
+    $namespace = '';
+
+    foreach ($nodeFinder->findInstanceOf($stmts, Namespace_::class) as $namespaceNode) {
+        /** @var Namespace_ $namespaceNode */
+        $namespace = $namespaceNode->name === null ? '' : $namespaceNode->name->toString();
+    }
+
+    $map = [];
+
+    foreach ($nodeFinder->findInstanceOf($stmts, Node\Stmt\Property::class) as $property) {
+        /** @var Node\Stmt\Property $property */
+        foreach ($property->props as $prop) {
+            if ((string) $prop->name !== 'eventNameToConcreteClass' || !$prop->default instanceof Node\Expr\Array_) {
+                continue;
+            }
+
+            foreach ($prop->default->items as $item) {
+                if ($item === null || !$item->key instanceof String_) {
+                    continue;
+                }
+
+                // Values are written as `Application\BeforeExecuteEvent::class`, relative to
+                // the CoreEventAware namespace.
+                if (!$item->value instanceof Node\Expr\ClassConstFetch || !$item->value->class instanceof Node\Name) {
+                    continue;
+                }
+
+                if (!$item->value->name instanceof Identifier || $item->value->name->toString() !== 'class') {
+                    continue;
+                }
+
+                $className = $item->value->class->toString();
+
+                if (str_starts_with($className, '\\')) {
+                    $className = ltrim($className, '\\');
+                } elseif ($className === 'Event') {
+                    // The Joomla\Event\Event fallback is not a concrete event class.
+                    continue;
+                } else {
+                    $className = $namespace . '\\' . $className;
+                }
+
+                $map[$item->key->value] = $className;
+            }
+        }
+    }
+
+    return $map;
+}
+
+/**
  * Merges the getters of the whole inheritance chain, child declarations winning.
  *
  * @param array<string, array{parent: ?string, order: ?string[], getters: array<string, string>, abstract: bool}> $classes
@@ -358,12 +485,24 @@ foreach (array_keys($classes) as $fqcn) {
     }
 
     $map[$fqcn] = [
-        'order'   => $order,
-        'getters' => $getters,
+        'order'       => $order,
+        'getters'     => $getters,
+        'resultAware' => resolveResultAware($fqcn, $classes),
     ];
 }
 
 ksort($map);
+
+$eventNameMap = extractEventNameMap($eventDir, $parser, $nodeFinder);
+
+// Only keep names that point at a class we actually know the arguments of.
+foreach (array_keys($eventNameMap) as $eventName) {
+    if (!isset($map[$eventNameMap[$eventName]])) {
+        unset($eventNameMap[$eventName]);
+    }
+}
+
+ksort($eventNameMap);
 
 foreach ($warnings as $warning) {
     fwrite(\STDERR, $warning . "\n");
@@ -390,32 +529,102 @@ if (is_file($versionFile)) {
     }
 }
 
-echo "    /**\n";
-echo "     * Default argument map for the Joomla core events.\n";
-echo "     *\n";
-echo "     * Generated by tools/generate-event-argument-map.php from Joomla $version.\n";
-echo "     * Do not edit by hand — re-run the generator instead.\n";
-echo "     *\n";
-echo "     * @var array<class-string, array{order: string[], getters: array<string, string>}>\n";
-echo "     */\n";
-echo "    private const DEFAULT_EVENT_ARGUMENT_MAP = [\n";
+$argumentMapCode = "    /**\n"
+    . "     * Argument map for the Joomla core events.\n"
+    . "     *\n"
+    . "     * `order` is the positional argument order taken from \$legacyArgumentsOrder, `getters`\n"
+    . "     * maps an argument name onto its getter, and `resultAware` says whether the event\n"
+    . "     * carries the addResult() API of ResultAwareInterface.\n"
+    . "     *\n"
+    . "     * Generated by tools/generate-event-argument-map.php from Joomla $version.\n"
+    . "     * Do not edit by hand — re-run the generator instead.\n"
+    . "     *\n"
+    . "     * @var array<class-string, array{order: string[], getters: array<string, string>, resultAware: bool}>\n"
+    . "     */\n"
+    . "    public const DEFAULT_EVENT_ARGUMENT_MAP = [\n";
 
 foreach ($map as $fqcn => $definition) {
-    echo "        '" . str_replace('\\', '\\\\', $fqcn) . "' => [\n";
-    echo "            'order'   => [" . implode(', ', array_map(
-        static fn (string $name): string => "'" . $name . "'",
-        $definition['order']
-    )) . "],\n";
-    echo "            'getters' => [";
-
     $pairs = [];
 
     foreach ($definition['getters'] as $argumentName => $getter) {
         $pairs[] = "'" . $argumentName . "' => '" . $getter . "'";
     }
 
-    echo implode(', ', $pairs) . "],\n";
-    echo "        ],\n";
+    $argumentMapCode .= "        '" . str_replace('\\', '\\\\', $fqcn) . "' => [\n"
+        . "            'order'       => [" . implode(', ', array_map(
+            static fn (string $name): string => "'" . $name . "'",
+            $definition['order']
+        )) . "],\n"
+        . "            'getters'     => [" . implode(', ', $pairs) . "],\n"
+        . "            'resultAware' => " . ($definition['resultAware'] ? 'true' : 'false') . ",\n"
+        . "        ],\n";
 }
 
-echo "    ];\n";
+$argumentMapCode .= "    ];";
+
+$nameMapCode = "    /**\n"
+    . "     * Maps a Joomla core event name onto its concrete event class.\n"
+    . "     *\n"
+    . "     * Taken from CoreEventAware::\$eventNameToConcreteClass, reduced to the events whose\n"
+    . "     * arguments are known in DEFAULT_EVENT_ARGUMENT_MAP.\n"
+    . "     *\n"
+    . "     * Generated by tools/generate-event-argument-map.php from Joomla $version.\n"
+    . "     * Do not edit by hand — re-run the generator instead.\n"
+    . "     *\n"
+    . "     * @var array<string, class-string>\n"
+    . "     */\n"
+    . "    public const DEFAULT_EVENT_NAME_MAP = [\n";
+
+foreach ($eventNameMap as $eventName => $fqcn) {
+    $nameMapCode .= "        '" . $eventName . "' => '" . str_replace('\\', '\\\\', $fqcn) . "',\n";
+}
+
+$nameMapCode .= "    ];";
+
+fwrite(\STDERR, \sprintf("Event name map: %d entries\n", \count($eventNameMap)));
+
+// ---------------------------------------------------------------------------
+// Write the maps into the shared map class, between the generated markers.
+// ---------------------------------------------------------------------------
+
+$target = \dirname(__DIR__) . '/rules/Joomla6/Event/JoomlaEventMap.php';
+
+if (!\in_array('--write', $argv, true)) {
+    echo $argumentMapCode . "\n\n" . $nameMapCode . "\n";
+    fwrite(\STDERR, "\nRun with --write to update $target in place.\n");
+
+    exit(0);
+}
+
+if (!is_file($target)) {
+    fwrite(\STDERR, "Target not found: $target\n");
+    exit(1);
+}
+
+$source = (string) file_get_contents($target);
+
+foreach ([
+    'ARGUMENT_MAP'   => $argumentMapCode,
+    'EVENT_NAME_MAP' => $nameMapCode,
+] as $marker => $code) {
+    $open    = '    // <generated:' . $marker . '>';
+    $close   = '    // </generated:' . $marker . '>';
+    $pattern = '/' . preg_quote($open, '/') . '\r?\n.*?' . preg_quote($close, '/') . '/s';
+
+    if (preg_match($pattern, $source) !== 1) {
+        fwrite(\STDERR, "Marker <generated:$marker> not found in $target\n");
+        exit(1);
+    }
+
+    $replacement = $open . "\n" . $code . "\n" . $close;
+
+    $source = (string) preg_replace_callback(
+        $pattern,
+        static fn (array $matches): string => $replacement,
+        $source
+    );
+}
+
+file_put_contents($target, $source);
+
+fwrite(\STDERR, "Wrote both maps into $target\n");
