@@ -26,8 +26,19 @@ use Joomla\Rector\Joomla5\ToolbarHelperToDocumentToolbarRector;
 use Joomla\Rector\Joomla5\ViewThisTypehintRector;
 use Joomla\Rector\Joomla6\CmsObjectReturnTypeRector;
 use Joomla\Rector\Joomla6\HtmlViewExceptionHandlingRector;
+use Joomla\Rector\Joomla6\JpathPlatformToJexecRector;
+use Joomla\Rector\Joomla6\Module\DispatcherGetLayoutDataRector;
+use Joomla\Rector\Joomla6\Module\ModuleHelperStaticToHelperFactoryRector;
+use Joomla\Rector\Joomla6\Module\ModuleTmplTypehintRector;
+use Joomla\Rector\Joomla6\Plugin\AllowLegacyListenersRector;
 use Joomla\Rector\Joomla6\Plugin\EventArgumentsToTypedEventRector;
+use Joomla\Rector\Joomla6\Plugin\HandlerReturnToEventResultRector;
+use Joomla\Rector\Joomla6\Plugin\LegacyHandlerSignatureRector;
 use Joomla\Rector\Joomla6\SetErrorToExceptionRector;
+use Joomla\Rector\Joomla6\Template\CountModulesRector;
+use Joomla\Rector\Joomla6\Template\DocumentAssetsToWebAssetManagerRector;
+use Joomla\Rector\Joomla6\Template\FactoryGetDocumentRector;
+use Joomla\Rector\Joomla6\Template\TemplateThisTypehintRector;
 use Rector\Config\RectorConfig;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
@@ -135,17 +146,79 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(HtmlViewExceptionHandlingRector::class);
     // Replaces $this->setError('msg') followed by return false with throw new \Exception('msg').
     $rectorConfig->rule(SetErrorToExceptionRector::class);
+    // Replaces the JPATH_PLATFORM direct access guard with _JEXEC.
+    $rectorConfig->rule(JpathPlatformToJexecRector::class);
+
+    // Also flag other JPATH_PLATFORM usages (path expressions) with a TODO comment:
+    // $rectorConfig->ruleWithConfiguration(JpathPlatformToJexecRector::class, [
+    //     JpathPlatformToJexecRector::MARK_OTHER_USAGES => true,
+    // ]);
 
     // Plugins
+    // Run these in the given order: the signature rule produces the typed event parameter that
+    // the argument rule needs, and the result rule needs both. PluginSubscriberInterfaceRector
+    // (Joomla 5, above) should have run first.
+    //
+    // Converts a legacy handler signature to the typed event object signature.
+    $rectorConfig->rule(LegacyHandlerSignatureRector::class);
     // Replaces positional and named event argument access with the typed getters of the event class.
     $rectorConfig->rule(EventArgumentsToTypedEventRector::class);
+    // Writes a handler return value into the event result instead of returning it.
+    $rectorConfig->rule(HandlerReturnToEventResultRector::class);
+    // Removes the deprecated $allowLegacyListeners property from subscriber plugins.
+    $rectorConfig->rule(AllowLegacyListenersRector::class);
 
     // The built-in event map only covers the Joomla core events. If your extension defines its
-    // own event classes, register them instead of the plain rule() call above:
+    // own event classes, register them instead of the plain rule() calls above:
     // $rectorConfig->ruleWithConfiguration(EventArgumentsToTypedEventRector::class, [
     //     EventArgumentsToTypedEventRector::EVENT_ARGUMENT_MAP => [
     //         \Acme\Event\MyCustomEvent::class => ['context', 'item'],
     //     ],
+    // ]);
+    //
+    // AllowLegacyListenersRector removes the deprecated property by default. To keep it and only
+    // force it to false instead:
+    // $rectorConfig->ruleWithConfiguration(AllowLegacyListenersRector::class, [
+    //     AllowLegacyListenersRector::MODE => AllowLegacyListenersRector::MODE_SET_FALSE,
+    // ]);
+
+    // Modules
+    // These assume a module that already uses the namespaced structure with a dispatcher.
+    // Run `php tools/analyse-legacy-modules.php <path>` to find modules that still need the
+    // structural conversion first.
+    //
+    // Converts a hand written module dispatch() method into getLayoutData().
+    $rectorConfig->rule(DispatcherGetLayoutDataRector::class);
+    // Replaces static module helper calls with the HelperFactory and de-statics the helper.
+    $rectorConfig->rule(ModuleHelperStaticToHelperFactoryRector::class);
+    // Adds @var annotations for the standard layout variables to module template files.
+    $rectorConfig->rule(ModuleTmplTypehintRector::class);
+
+    // Extra layout variables your module passes to its templates:
+    // $rectorConfig->ruleWithConfiguration(ModuleTmplTypehintRector::class, [
+    //     ModuleTmplTypehintRector::EXTRA_VARIABLES => ['items' => '\\stdClass[]'],
+    // ]);
+
+    // Templates
+    // Splits countModules() condition strings into individual calls.
+    $rectorConfig->rule(CountModulesRector::class);
+    // Replaces direct document asset calls with the WebAssetManager.
+    $rectorConfig->rule(DocumentAssetsToWebAssetManagerRector::class);
+    // Replaces Factory::getDocument() with the getter that fits the context.
+    // Despite the namespace this applies to views, plugins and services too.
+    $rectorConfig->rule(FactoryGetDocumentRector::class);
+    // Adds the @var $this annotation to index.php, component.php, offline.php and error.php.
+    $rectorConfig->rule(TemplateThisTypehintRector::class);
+
+    // The generated calls keep the old default counting. Pass true as the second argument
+    // instead, i.e. count only modules that actually render content:
+    // $rectorConfig->ruleWithConfiguration(CountModulesRector::class, [
+    //     CountModulesRector::WITH_CONTENT_ONLY => true,
+    // ]);
+    //
+    // Prefix every derived web asset name, e.g. with your vendor:
+    // $rectorConfig->ruleWithConfiguration(DocumentAssetsToWebAssetManagerRector::class, [
+    //     DocumentAssetsToWebAssetManagerRector::ASSET_NAME_PREFIX => 'acme.',
     // ]);
 
     /**
