@@ -39,10 +39,21 @@ These rules convert a Joomla 3 component to the namespaced Joomla 4 structure. T
 
 ## [Joomla 6](rules/joomla6.md)
 
+- [AllowLegacyListenersRector](rules/joomla6.md#allowlegacylistenersrector) — Removes the deprecated `$allowLegacyListeners` property from plugins implementing `SubscriberInterface`.
 - [CmsObjectReturnTypeRector](rules/joomla6.md#cmsobjectreturntyperector) — Replaces `CMSObject` with `stdClass` in return type hints and `@return` PHPDoc tags.
+- [CountModulesRector](rules/joomla6.md#countmodulesrector) — Splits `countModules()` condition strings such as `'a and b'` into individual calls.
+- [DispatcherGetLayoutDataRector](rules/joomla6.md#dispatchergetlayoutdatarector) — Converts a hand written module `dispatch()` method into `getLayoutData()`.
+- [DocumentAssetsToWebAssetManagerRector](rules/joomla6.md#documentassetstowebassetmanagerrector) — Replaces direct document `addStyleSheet()` / `addScript()` calls with the WebAssetManager.
 - [EventArgumentsToTypedEventRector](rules/joomla6.md#eventargumentstotypedeventrector) — Replaces positional and named event argument access with the typed getters of the concrete event class.
+- [FactoryGetDocumentRector](rules/joomla6.md#factorygetdocumentrector) — Replaces `Factory::getDocument()` with the getter that fits the context.
+- [HandlerReturnToEventResultRector](rules/joomla6.md#handlerreturntoeventresultrector) — Writes a plugin handler return value into the event result instead of returning it.
 - [HtmlViewExceptionHandlingRector](rules/joomla6.md#htmlviewexceptionhandlingrector) — Adds `$model->setUseException(true)` after `$this->getModel()` and removes legacy `getErrors()` if-blocks.
+- [JpathPlatformToJexecRector](rules/joomla6.md#jpathplatformtojexecrector) — Switches the direct access guard from `JPATH_PLATFORM` to `_JEXEC`.
+- [LegacyHandlerSignatureRector](rules/joomla6.md#legacyhandlersignaturerector) — Converts a legacy plugin handler signature to the typed event object signature.
+- [ModuleHelperStaticToHelperFactoryRector](rules/joomla6.md#modulehelperstatictohelperfactoryrector) — Replaces static module helper calls with the `HelperFactory` and turns helper methods into instance methods.
+- [ModuleTmplTypehintRector](rules/joomla6.md#moduletmpltypehintrector) — Adds `@var` annotations for the standard layout variables to module template files.
 - [SetErrorToExceptionRector](rules/joomla6.md#seterrortoexceptionrector) — Replaces `$this->setError('msg')` followed by `return false` with `throw new \Exception('msg')`.
+- [TemplateThisTypehintRector](rules/joomla6.md#templatethistypehintrector) — Adds the `@var $this` annotation to `index.php`, `component.php`, `offline.php` and `error.php`.
 
 ## Rule sets
 
