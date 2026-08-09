@@ -115,11 +115,58 @@ final class RenamedClassHandlerService
             return;
         }
 
-        $contents  = file_get_contents($filePath);
-        $this->map = @json_decode($contents, true) ?? [
-            'site'  => [],
-            'admin' => [],
-        ];
+        $contents = file_get_contents($filePath);
+        $decoded  = $contents === false ? null : json_decode($contents, true);
+
+        $this->map = $this->normalise(\is_array($decoded) ? $decoded : []);
+    }
+
+    /**
+     * Reduces a decoded class map to the expected shape: two sides, each a map of legacy class
+     * name to namespaced class name.
+     *
+     * Files written by the earlier array_merge_recursive() based save() hold an array of
+     * identical strings instead of a single string for every entry. Those are repaired here
+     * rather than discarded, so an existing _classmap.json keeps working after the upgrade.
+     *
+     * @param   array  $map  The raw decoded map.
+     *
+     * @return  array[]
+     * @since   1.0.0
+     */
+    private function normalise(array $map): array
+    {
+        $normalised = [];
+
+        foreach (['site', 'admin'] as $side) {
+            $normalised[$side] = [];
+
+            $entries = $map[$side] ?? [];
+
+            if (!\is_array($entries)) {
+                continue;
+            }
+
+            foreach ($entries as $legacyClass => $namespacedClass) {
+                if (\is_string($namespacedClass)) {
+                    $normalised[$side][$legacyClass] = $namespacedClass;
+
+                    continue;
+                }
+
+                if (!\is_array($namespacedClass)) {
+                    continue;
+                }
+
+                $first = reset($namespacedClass);
+
+                if (\is_string($first)) {
+                    $normalised[$side][$legacyClass] = $first;
+                }
+            }
+        }
+
+        return $normalised;
     }
 
     /**
@@ -133,12 +180,21 @@ final class RenamedClassHandlerService
         $filePath = $this->directory . '/_classmap.json';
 
         if (is_file($filePath)) {
-            $old       = json_decode(file_get_contents($this->directory . '/_classmap.json'), true);
-            $this->map = array_merge_recursive($old, $this->map);
+            $contents = file_get_contents($filePath);
+            $decoded  = $contents === false ? null : json_decode($contents, true);
+
+            if (\is_array($decoded)) {
+                /**
+                 * array_replace_recursive(), NOT array_merge_recursive(): the latter turns two
+                 * scalar values stored under the same key into an array holding both. Since
+                 * save() merges the file with a map that was loaded from that same file, every
+                 * save doubled the length of every entry — which exhausted the memory limit
+                 * after a couple of runs and corrupted the values into arrays on the way.
+                 */
+                $this->map = array_replace_recursive($this->normalise($decoded), $this->map);
+            }
         }
 
-        $contents = json_encode($this->map);
-
-        file_put_contents($filePath, $contents);
+        file_put_contents($filePath, json_encode($this->map));
     }
 }
