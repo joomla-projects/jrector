@@ -48,7 +48,6 @@ class LegacyMVCToJ4Rector extends AbstractRector implements ConfigurableRectorIn
      *
      * @since 1.0.0
      * @var   null|string
-     * @readonly
      */
     protected $newNamespace = null;
 
