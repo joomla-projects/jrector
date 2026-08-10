@@ -34,7 +34,8 @@ class JoomlaPostRefactoringClassRenameRector extends AbstractRector
 
     public function __construct(
         private readonly RenamedClassHandlerService $renamedClassHandlerService,
-        private readonly ClassRenamer $classRenamer
+        private readonly ClassRenamer $classRenamer,
+        protected readonly FileRenameCollectorService $fileRenameCollectorService
     ) {
     }
 
