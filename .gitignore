@@ -3,3 +3,7 @@
 /.phpunit.result.cache
 /_classmap.json
 /joomla/
+
+# Rename scripts written by FileRenameCollectorService while the MVC tests run.
+# They carry a generation timestamp, so they would change on every run.
+rules-tests/**/Fixture/rename.php
