@@ -17,8 +17,4 @@ return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(
         GetDboToGetDatabaseRector::class
     );
-
-    $rectorConfig->autoloadPaths([
-        __DIR__ . '/../../../../joomla',
-    ]);
 };

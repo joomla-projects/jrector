@@ -1,6 +1,6 @@
 <?php
 
-class ExampleModel implements \Joomla\CMS\User\CurrentUserInterface
+class CurrentUserExampleModel implements \Joomla\CMS\User\CurrentUserInterface
 {
     public function getAuthoredBy(): int
     {
@@ -10,7 +10,7 @@ class ExampleModel implements \Joomla\CMS\User\CurrentUserInterface
 -----
 <?php
 
-class ExampleModel implements \Joomla\CMS\User\CurrentUserInterface
+class CurrentUserExampleModel implements \Joomla\CMS\User\CurrentUserInterface
 {
     public function getAuthoredBy(): int
     {

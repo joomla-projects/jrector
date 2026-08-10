@@ -25,5 +25,10 @@
       "Joomla\\Rector\\": "rules",
       "Joomla\\Rector\\Tests\\": "rules-tests"
     }
+  },
+  "autoload-dev": {
+    "classmap": [
+      "rules-tests/JoomlaStub/"
+    ]
   }
 }

@@ -15,8 +15,4 @@ use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
     $rectorConfig->rule(ViewAssignRefToPropertyRector::class);
-
-    $rectorConfig->autoloadPaths([
-        __DIR__ . '/../../../../joomla',
-    ]);
 };

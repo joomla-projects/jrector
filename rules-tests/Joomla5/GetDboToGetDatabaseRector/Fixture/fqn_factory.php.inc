@@ -1,6 +1,6 @@
 <?php
 
-class ExampleModel extends \Joomla\CMS\MVC\Model\AdminModel
+class GetDboExampleModel extends \Joomla\CMS\MVC\Model\AdminModel
 {
     public function getCount(): int
     {
@@ -12,7 +12,7 @@ class ExampleModel extends \Joomla\CMS\MVC\Model\AdminModel
 -----
 <?php
 
-class ExampleModel extends \Joomla\CMS\MVC\Model\AdminModel
+class GetDboExampleModel extends \Joomla\CMS\MVC\Model\AdminModel
 {
     public function getCount(): int
     {

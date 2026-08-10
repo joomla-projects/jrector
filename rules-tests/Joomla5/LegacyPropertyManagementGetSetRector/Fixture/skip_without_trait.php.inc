@@ -1,7 +1,7 @@
 <?php
 
 // Class does not use LegacyPropertyManagementTrait — nothing should change.
-class ExampleView
+class ExampleViewWithoutTrait
 {
     public function display(): void
     {

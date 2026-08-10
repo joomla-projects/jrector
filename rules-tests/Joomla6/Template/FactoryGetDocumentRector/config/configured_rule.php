@@ -14,8 +14,6 @@ use Joomla\Rector\Joomla6\Template\FactoryGetDocumentRector;
 use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
-    // Minimal Joomla stubs so the reflection path can be tested without a real installation.
-    $rectorConfig->autoloadPaths([__DIR__ . '/../JoomlaStub']);
 
     $rectorConfig->rule(FactoryGetDocumentRector::class);
 };

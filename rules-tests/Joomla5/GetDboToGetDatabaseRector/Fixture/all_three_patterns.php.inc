@@ -2,7 +2,7 @@
 
 use Joomla\CMS\Factory;
 
-class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
+class GetDboExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
 {
     public function getItems(): array
     {
@@ -19,7 +19,7 @@ class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
 
 use Joomla\CMS\Factory;
 
-class ExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
+class GetDboExampleModel extends \Joomla\CMS\MVC\Model\BaseDatabaseModel
 {
     public function getItems(): array
     {

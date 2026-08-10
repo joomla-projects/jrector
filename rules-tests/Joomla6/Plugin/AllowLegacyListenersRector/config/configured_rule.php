@@ -14,10 +14,6 @@ use Joomla\Rector\Joomla6\Plugin\AllowLegacyListenersRector;
 use Rector\Config\RectorConfig;
 
 return static function (RectorConfig $rectorConfig): void {
-    // Minimal CMSPlugin / SubscriberInterface stubs, so the reflection path can be tested
-    // without requiring a real Joomla installation. In a real project this is what
-    // autoloadPaths([__DIR__ . '/joomla']) provides.
-    $rectorConfig->autoloadPaths([__DIR__ . '/../JoomlaStub']);
 
     // Default mode: remove.
     $rectorConfig->rule(AllowLegacyListenersRector::class);
