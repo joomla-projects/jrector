@@ -188,6 +188,6 @@ CODE_SAMPLE
             return false;
         }
 
-        return $this->reflectionProvider->getClass($className)->hasProperty($propertyName);
+        return $this->reflectionProvider->getClass($className)->hasInstanceProperty($propertyName);
     }
 }
