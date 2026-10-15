@@ -71,6 +71,11 @@ Both mechanisms are shared with the MVC rules:
 - [SetErrorToExceptionRector](rules/joomla6.md#seterrortoexceptionrector) — Replaces `$this->setError('msg')` followed by `return false` with `throw new \Exception('msg')`.
 - [TemplateThisTypehintRector](rules/joomla6.md#templatethistypehintrector) — Adds the `@var $this` annotation to `index.php`, `component.php`, `offline.php` and `error.php`.
 
+## [Joomla 7](rules/joomla7.md)
+
+- [GetInstanceToContainerRector](rules/joomla7.md#getinstancetocontainerrector) — Replaces the static `getInstance()` accessors removed in Joomla 7 (`Pathway`, `Session`, `Cache`, `CacheController`) with the application or the container.
+- [ResultIsFalseablePropertyRector](rules/joomla7.md#resultisfalseablepropertyrector) — Removes the `$resultIsFalseable` property, dropped from the `ResultType*Aware` traits in Joomla 7, from event classes.
+
 ## Rule sets
 
 Instead of registering the rules one by one, `Joomla\Rector\Set\JoomlaSetList` offers ready-made sets:
@@ -94,6 +99,7 @@ return static function (RectorConfig $rectorConfig): void {
 | `JoomlaSetList::JOOMLA_6_PLUGINS` | Joomla 6 rules that only concern plugins |
 | `JoomlaSetList::JOOMLA_6_MODULES` | Joomla 6 rules that only concern modules |
 | `JoomlaSetList::JOOMLA_6_TEMPLATES` | Joomla 6 rules that only concern templates |
+| `JoomlaSetList::JOOMLA_7` | Joomla 7 rules |
 | `JoomlaSetList::UP_TO_JOOMLA_6` | Joomla 3 to Joomla 6 combined |
 
 **Sets are for the second pass, not the first.** A set applies many rules in one run, which is exactly what the [migration advice](index.md#how-to-properly-refactor-your-code) tells you not to do while migrating: you cannot review a diff that touches everything at once. Migrate rule by rule, then use a set in CI to keep the code base from drifting back.

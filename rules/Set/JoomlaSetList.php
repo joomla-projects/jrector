@@ -62,6 +62,11 @@ final class JoomlaSetList
     public const JOOMLA_6_TEMPLATES = __DIR__ . '/../../config/sets/joomla6-templates.php';
 
     /**
+     * Rules that bring code up to Joomla 7.
+     */
+    public const JOOMLA_7 = __DIR__ . '/../../config/sets/joomla7.php';
+
+    /**
      * Everything from Joomla 3 up to Joomla 6 in one set.
      *
      * Structural rules that create or move files are not included, for the same reason the
