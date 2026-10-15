@@ -23,6 +23,8 @@ use PhpParser\Node\Scalar\String_;
 use PhpParser\Node\Stmt\Class_;
 use PhpParser\Node\Stmt\ClassMethod;
 use PhpParser\Node\Stmt\Expression;
+use PHPStan\Reflection\ClassReflection;
+use PHPStan\Reflection\ReflectionProvider;
 use Rector\Rector\AbstractRector;
 use Symplify\RuleDocGenerator\ValueObject\CodeSample\CodeSample;
 use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
@@ -35,11 +37,20 @@ use Symplify\RuleDocGenerator\ValueObject\RuleDefinition;
  * View\<Name>\HtmlView pattern. The model FQN is derived by replacing \View\
  * with \Model\, removing \HtmlView, and appending Model.
  *
+ * A call is only converted when the derived model class can be resolved and
+ * the corresponding getter (e.g. getItems()) exists on it, mirroring the
+ * method_exists() check in the legacy AbstractView::get().
+ *
  * @since  1.0.0
  * @see    \Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\HtmlViewGetToModelGetRectorTest
  */
 final class HtmlViewGetToModelGetRector extends AbstractRector
 {
+    public function __construct(
+        private readonly ReflectionProvider $reflectionProvider,
+    ) {
+    }
+
     public function getNodeTypes(): array
     {
         return [Class_::class];
@@ -89,11 +100,18 @@ CODE_SAMPLE
             return null;
         }
 
-        $modelFqn   = $this->deriveModelFqn($node);
-        $hasChanged = false;
+        $modelFqn = $this->deriveModelFqn($node);
+
+        // Without a resolvable model class we cannot verify that the getters exist
+        if ($modelFqn === null || !$this->reflectionProvider->hasClass($modelFqn)) {
+            return null;
+        }
+
+        $modelReflection = $this->reflectionProvider->getClass($modelFqn);
+        $hasChanged      = false;
 
         foreach ($node->getMethods() as $classMethod) {
-            if ($this->transformMethod($classMethod, $modelFqn)) {
+            if ($this->transformMethod($classMethod, $modelReflection)) {
                 $hasChanged = true;
             }
         }
@@ -102,23 +120,26 @@ CODE_SAMPLE
     }
 
     /**
-     * Replace all $this->get('...') calls in a method with $model->get...() calls.
+     * Replace all $this->get('...') calls in a method with $model->get...() calls,
+     * as long as the matching getter exists on the model.
      * Adds a @var typehint comment and prepends $model = $this->getModel() if not already present.
      * Moves an existing $model = $this->getModel() to before the first $model usage if necessary.
      *
      * @return bool Whether the method was changed.
      */
-    private function transformMethod(ClassMethod $classMethod, ?string $modelFqn): bool
+    private function transformMethod(ClassMethod $classMethod, ClassReflection $modelReflection): bool
     {
         if ($classMethod->stmts === null || $classMethod->stmts === []) {
             return false;
         }
 
-        // First pass: detect whether any $this->get('...') calls exist
+        $modelFqn = $modelReflection->getName();
+
+        // First pass: detect whether any convertible $this->get('...') calls exist
         $hasGetCall = false;
 
-        $this->traverseNodesWithCallable($classMethod->stmts, function (Node $subNode) use (&$hasGetCall): ?Node {
-            if ($this->isViewGetCall($subNode)) {
+        $this->traverseNodesWithCallable($classMethod->stmts, function (Node $subNode) use (&$hasGetCall, $modelReflection): ?Node {
+            if ($this->getModelGetterName($subNode, $modelReflection) !== null) {
                 $hasGetCall = true;
             }
 
@@ -130,17 +151,12 @@ CODE_SAMPLE
         }
 
         // Second pass: replace $this->get('Foo') with $model->getFoo()
-        $this->traverseNodesWithCallable($classMethod->stmts, function (Node $subNode): ?Node {
-            if (!$this->isViewGetCall($subNode)) {
+        $this->traverseNodesWithCallable($classMethod->stmts, function (Node $subNode) use ($modelReflection): ?Node {
+            $newMethodName = $this->getModelGetterName($subNode, $modelReflection);
+
+            if ($newMethodName === null) {
                 return null;
             }
-
-            /** @var MethodCall $subNode */
-            /** @var Arg $firstArg */
-            $firstArg      = $subNode->args[0];
-            /** @var String_ $stringNode */
-            $stringNode    = $firstArg->value;
-            $newMethodName = 'get' . ucfirst($stringNode->value);
 
             return new MethodCall(new Variable('model'), $newMethodName);
         });
@@ -161,7 +177,7 @@ CODE_SAMPLE
             }
 
             // Add @var typehint if FQN is known and not already annotated
-            if ($modelFqn !== null && $getModelStmt->getDocComment() === null) {
+            if ($getModelStmt->getDocComment() === null) {
                 $getModelStmt->setDocComment(new Doc('/** @var \\' . $modelFqn . ' $model */'));
             }
         } elseif (!$this->isModelVariableDefined($classMethod)) {
@@ -173,14 +189,33 @@ CODE_SAMPLE
                 )
             );
 
-            if ($modelFqn !== null) {
-                $newStmt->setDocComment(new Doc('/** @var \\' . $modelFqn . ' $model */'));
-            }
+            $newStmt->setDocComment(new Doc('/** @var \\' . $modelFqn . ' $model */'));
 
             array_unshift($classMethod->stmts, $newStmt);
         }
 
         return true;
+    }
+
+    /**
+     * Return the model getter name (e.g. getItems) for a $this->get('Items') call,
+     * or null if the node is no such call or the getter does not exist on the model.
+     */
+    private function getModelGetterName(Node $node, ClassReflection $modelReflection): ?string
+    {
+        if (!$this->isViewGetCall($node)) {
+            return null;
+        }
+
+        /** @var MethodCall $node */
+        /** @var Arg $firstArg */
+        $firstArg   = $node->args[0];
+        /** @var String_ $stringNode */
+        $stringNode = $firstArg->value;
+        $methodName = 'get' . ucfirst($stringNode->value);
+
+        // Native check, matching the method_exists() test in AbstractView::get()
+        return $modelReflection->hasNativeMethod($methodName) ? $methodName : null;
     }
 
     /**

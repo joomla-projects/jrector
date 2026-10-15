@@ -1,5 +1,7 @@
 <?php
 
+namespace Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\Source\View\Articles;
+
 class HtmlView extends BaseHtmlView
 {
     public function display($tpl = null)
@@ -16,16 +18,20 @@ class HtmlView extends BaseHtmlView
 -----
 <?php
 
+namespace Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\Source\View\Articles;
+
 class HtmlView extends BaseHtmlView
 {
     public function display($tpl = null)
     {
+        /** @var \Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\Source\Model\ArticlesModel $model */
         $model = $this->getModel();
         $items = $model->getItems();
     }
 
     public function sidebar()
     {
+        /** @var \Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\Source\Model\ArticlesModel $model */
         $model = $this->getModel();
         $featured = $model->getFeatured();
         $total    = $model->getTotal();

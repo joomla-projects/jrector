@@ -1,6 +1,6 @@
 <?php
 
-namespace Acme\Component\Example\Site\View\Articles;
+namespace Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\Source\View\Articles;
 
 class HtmlView extends BaseHtmlView
 {
@@ -13,13 +13,13 @@ class HtmlView extends BaseHtmlView
 -----
 <?php
 
-namespace Acme\Component\Example\Site\View\Articles;
+namespace Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\Source\View\Articles;
 
 class HtmlView extends BaseHtmlView
 {
     public function display($tpl = null)
     {
-        /** @var \Acme\Component\Example\Site\Model\ArticlesModel $model */
+        /** @var \Joomla\Rector\Tests\Joomla5\HtmlViewGetToModelGetRector\Source\Model\ArticlesModel $model */
         $model = $this->getModel();
         $items = $model->getItems();
     }
